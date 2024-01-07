@@ -9,7 +9,7 @@ describe('alphavantage', () => {
         it('should work for AMZN', async() => {
             const result = await alphavantage.queryCompanyOverview('AMZN');
             expect(result.symbol).to.equal('AMZN');
-            expect(result.name).to.equal('Amazon.com, Inc');
+            expect(result.name).to.equal('Amazon.com Inc');
         });
     });
 
@@ -24,7 +24,7 @@ describe('alphavantage', () => {
             expect(result.high).to.equal(3282.9219);
             expect(result.low).to.equal(3241.2);
             expect(result.close).to.equal(3256.93);
-            expect(result.adjustedClose).to.equal(3256.93);
+            expect(result.adjustedClose).to.equal(162.8465);
             expect(result.volume).to.equal(2957206);
             expect(result.dividendAmount).to.equal(0);
             expect(result.splitCoefficient).to.equal(1);
@@ -43,7 +43,7 @@ describe('alphavantage', () => {
             const result = results.slice(-1)[0];
             expect(result.symbol).to.equal('AMZN');
             expect(result.date).to.equal('2020-12-31');
-            expect(result.sma).to.equal(3172.9108);
+            expect(result.sma).to.equal(158.6455);
         });
 
         it('should work for AMZN since <future date>', async() => {
@@ -72,7 +72,7 @@ describe('alphavantage', () => {
             const result = results.slice(-1)[0];
             expect(result.symbol).to.equal('AMZN');
             expect(result.date).to.equal('2020-12-31');
-            expect(result.ema).to.equal(3186.5997);
+            expect(result.ema).to.equal(159.33);
         });
 
         it('should work for AMZN since <future date>', async() => {
@@ -101,9 +101,9 @@ describe('alphavantage', () => {
             const result = results.slice(-1)[0];
             expect(result.symbol).to.equal('AMZN');
             expect(result.date).to.equal('2020-12-31');
-            expect(result.macd).to.equal(28.6142);
-            expect(result.hist).to.equal(10.7848);
-            expect(result.signal).to.equal(17.8294);
+            expect(result.macd).to.equal(1.4307);
+            expect(result.hist).to.equal(0.5392);
+            expect(result.signal).to.equal(0.8915);
         });
 
         it('should work for AMZN since <future date>', async() => {
@@ -148,9 +148,9 @@ describe('alphavantage', () => {
             const result = results.slice(-1)[0];
             expect(result.symbol).to.equal('AMZN');
             expect(result.date).to.equal('2020-12-31');
-            expect(result.lower).to.equal(3078.7905);
-            expect(result.upper).to.equal(3313.8985);
-            expect(result.middle).to.equal(3196.3445);
+            expect(result.lower).to.equal(153.9395);
+            expect(result.upper).to.equal(165.6949);
+            expect(result.middle).to.equal(159.8172);
         });
 
         it('should work for AMZN since <future date>', async() => {
