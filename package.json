@@ -4,8 +4,8 @@
   "description": "Stocks and Technical Indicators using MongoDB",
   "main": "index.js",
   "scripts": {
-    "test:unit": "nyc --reporter=lcov --reporter=text mocha --timeout=65000 test/unit/*",
-    "test:integration": "mocha --timeout=65000 test/integration/*",
+    "test:unit": "nyc --reporter=lcov --reporter=text mocha test/unit/*",
+    "test:integration": "mocha test/integration/*",
     "test": "npm run test:unit"
   },
   "repository": {
