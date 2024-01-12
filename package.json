@@ -25,7 +25,7 @@
   "dependencies": {
     "csv-parser": "^3.0.0",
     "dayjs": "^1.11.9",
-    "mongoose": "^8.0.3",
+    "mongoose": "^8.0.4",
     "node-fetch": "^2.6.12",
     "p-map": "^4.0.0",
     "p-queue": "^6.6.2",
