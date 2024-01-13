@@ -28,4 +28,8 @@ jobs:
         cache: 'npm'
     - run: npm ci
     - run: npm run build --if-present
-    - run: npm test
+    - shell: bash
+      env:
+        ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+        ALPHAVANTAGE_INTERVAL_CAP: ${{ vars.ALPHAVANTAGE_INTERVAL_CAP }}
+      run: npm test
