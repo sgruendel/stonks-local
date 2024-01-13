@@ -1,7 +1,6 @@
 'use strict';
 
 const mongoose = require('mongoose');
-mongoose.set('strictQuery', false);
 mongoose.connect('mongodb://localhost:27017/stonks');
 
 const winston = require('winston');
@@ -48,7 +47,7 @@ exports.CompanyOverview = mongoose.model('CompanyOverview',
     new mongoose.Schema({
         symbol: {
             type: String,
-            //validate: (symbol) => symbol.length > 0,
+            validate: (symbol) => symbol.length > 0,
             required: true,
         },
     }, {
@@ -60,52 +59,52 @@ exports.CompanyOverview = mongoose.model('CompanyOverview',
 const dailyAdjusteds = new mongoose.Schema({
     symbol: {
         type: String,
-        //validate: (symbol) => symbol.length > 0,
+        validate: (symbol) => symbol.length > 0,
         required: true,
     },
     date: {
         type: String,
-        //validate: (date) => date.length > 0,
+        validate: (date) => date.length > 0,
         required: true,
     },
     open: {
         type: Number,
-        //validate: (open) => open >= 0,
+        validate: (open) => open >= 0,
         required: true,
     },
     high: {
         type: Number,
-        //validate: (high) => high >= 0,
+        validate: (high) => high >= 0,
         required: true,
     },
     low: {
         type: Number,
-        //validate: (low) => low >= 0,
+        validate: (low) => low >= 0,
         required: true,
     },
     close: {
         type: Number,
-        //validate: (close) => close >= 0,
+        validate: (close) => close >= 0,
         required: true,
     },
     adjustedClose: {
         type: Number,
-        //validate: (adjustedClose) => adjustedClose >= 0,
+        validate: (adjustedClose) => adjustedClose >= 0,
         required: true,
     },
     volume: {
         type: Number,
-        //validate: (volume) => volume >= 0,
+        validate: (volume) => volume >= 0,
         required: true,
     },
     dividendAmount: {
         type: Number,
-        //validate: (dividendAmount) => dividendAmount >= 0,
+        validate: (dividendAmount) => dividendAmount >= 0,
         required: true,
     },
     splitCoefficient: {
         type: Number,
-        //validate: (splitCoefficient) => splitCoefficient >= 0,
+        validate: (splitCoefficient) => splitCoefficient >= 0,
         required: true,
     },
 }, {
@@ -118,81 +117,81 @@ exports.DailyAdjusted = mongoose.model('DailyAdjusted', dailyAdjusteds);
 const technicalIndicators = new mongoose.Schema({
     symbol: {
         type: String,
-        //validate: (symbol) => symbol.length > 0,
+        validate: (symbol) => symbol.length > 0,
         required: true,
     },
     date: {
         type: String,
-        //validate: (date) => date.length > 0,
+        validate: (date) => date.length > 0,
         required: true,
     },
     sma15: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma20: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma50: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma100: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma200: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     ema5: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema8: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema9: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema12: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema13: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema20: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema21: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema26: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema34: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema50: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema100: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     ema200: {
         type: Number,
-        //validate: (ema) => ema >= 0,
+        validate: (ema) => ema >= 0,
     },
     macd: {
         type: Number,
@@ -205,7 +204,7 @@ const technicalIndicators = new mongoose.Schema({
     },
     rsi: {
         type: Number,
-        //validate: (rsi) => rsi >= 0.0 && rsi <= 100.0,
+        validate: (rsi) => rsi >= 0.0 && rsi <= 100.0,
     },
     bbandLower: {
         type: Number,
@@ -226,52 +225,52 @@ exports.TechnicalIndicators = mongoose.model('TechnicalIndicators', technicalInd
 const vixs = new mongoose.Schema({
     date: {
         type: String,
-        //validate: (date) => date.length > 0,
+        validate: (date) => date.length > 0,
         required: true,
     },
     open: {
         type: Number,
-        //validate: (open) => open >= 0,
+        validate: (open) => open >= 0,
         required: true,
     },
     high: {
         type: Number,
-        //validate: (high) => high >= 0,
+        validate: (high) => high >= 0,
         required: true,
     },
     low: {
         type: Number,
-        //validate: (low) => low >= 0,
+        validate: (low) => low >= 0,
         required: true,
     },
     close: {
         type: Number,
-        //validate: (close) => close >= 0,
+        validate: (close) => close >= 0,
         required: true,
     },
     sma10: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma15: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma20: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma50: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma100: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
     sma200: {
         type: Number,
-        //validate: (sma) => sma >= 0,
+        validate: (sma) => sma >= 0,
     },
 }, {
     autoCreate: true,
