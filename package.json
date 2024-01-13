@@ -4,7 +4,7 @@
   "description": "Stocks and Technical Indicators using MongoDB",
   "main": "index.js",
   "scripts": {
-    "test:unit": "nyc --reporter=lcov --reporter=text mocha test/unit/*",
+    "test:unit": "export $(cat .env.local | xargs) && nyc --reporter=lcov --reporter=text mocha test/unit/*",
     "test:integration": "mocha test/integration/*",
     "test": "npm run test:unit"
   },
