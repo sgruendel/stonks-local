@@ -1,10 +1,10 @@
-'use strict';
+import fs from 'fs';
 
-const csv = require('csv-parser');
-const dayjs = require('dayjs');
-const fetch = require('node-fetch');
-const pMap = require('p-map');
-const winston = require('winston');
+import csv from 'csv-parser';
+import dayjs from 'dayjs';
+import fetch from 'node-fetch';
+import pMap from 'p-map';
+import winston from 'winston';
 
 const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
@@ -16,10 +16,10 @@ const logger = winston.createLogger({
     exitOnError: false,
 });
 
-const alphavantage = require('./alphavantage');
-const db = require('./db');
+import * as alphavantage from './alphavantage.js';
+import * as db from './db.js';
 
-const ALL_SYMBOLS = require('./symbols.json');
+const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json'));
 const DATE_FORMAT = 'YYYY-MM-DD';
 
 // see https://www.investopedia.com/terms/s/sma.asp
@@ -32,22 +32,24 @@ async function updateVix(since) {
     const vixHistory = await fetch('https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv');
     const results = [];
     vixHistory.body
-        .pipe(csv({
-            mapHeaders: ({ header, index }) => header.toLowerCase(),
-            mapValues: ({ header, index, value }) => {
-                if (header === 'date') {
-                    return dayjs(value).format(DATE_FORMAT);
-                }
-                return Number(value);
-            },
-        }))
-        .on('data', data => results.push(data))
+        .pipe(
+            csv({
+                mapHeaders: ({ header, index }) => header.toLowerCase(),
+                mapValues: ({ header, index, value }) => {
+                    if (header === 'date') {
+                        return dayjs(value).format(DATE_FORMAT);
+                    }
+                    return Number(value);
+                },
+            }),
+        )
+        .on('data', (data) => results.push(data))
         .on('end', () => {
-            //console.log(results.length);
-            //console.log(results[results.length - 1]);
+            // console.log(results.length);
+            // console.log(results[results.length - 1]);
             const closes = [];
             let allPromises = [];
-            results.forEach(vix => {
+            results.forEach((vix) => {
                 closes.push(vix.close);
                 if (closes.length >= 10) {
                     vix.sma10 = calcSMA(closes, 10);
@@ -97,14 +99,16 @@ async function updateSymbolAsync(symbol, since) {
         allPromises.push(db.CompanyOverview.updateOne({ symbol: symbol }, overview, { upsert: true }));
 
         const dailyAdjusteds = await alphavantage.queryDailyAdjusted(symbol, since);
-        dailyAdjusteds.filter(da => da.splitCoefficient !== 1).forEach(da => {
-            logger.info(da.symbol + ' split on ' + da.date + ' ' + da.splitCoefficient + ':1');
-        });
+        dailyAdjusteds
+            .filter((da) => da.splitCoefficient !== 1)
+            .forEach((da) => {
+                logger.info(da.symbol + ' split on ' + da.date + ' ' + da.splitCoefficient + ':1');
+            });
         if (dailyAdjusteds.length === 0) {
             logger.info('no updates for ' + symbol);
             return;
         }
-        dailyAdjusteds.forEach(da => {
+        dailyAdjusteds.forEach((da) => {
             allPromises.push(db.DailyAdjusted.updateOne({ symbol: symbol, date: da.date }, da, { upsert: true }));
         });
 
@@ -134,27 +138,28 @@ async function updateSymbolAsync(symbol, since) {
             let ti = filter;
 
             if (i < sma200s.length) {
-                if (sma15s[i].date !== dailyAdjusteds[i].date
-                    || sma20s[i].date !== dailyAdjusteds[i].date
-                    || sma50s[i].date !== dailyAdjusteds[i].date
-                    || sma100s[i].date !== dailyAdjusteds[i].date
-                    || sma200s[i].date !== dailyAdjusteds[i].date
-                    || ema5s[i].date !== dailyAdjusteds[i].date
-                    || ema8s[i].date !== dailyAdjusteds[i].date
-                    || ema9s[i].date !== dailyAdjusteds[i].date
-                    || ema12s[i].date !== dailyAdjusteds[i].date
-                    || ema13s[i].date !== dailyAdjusteds[i].date
-                    || ema20s[i].date !== dailyAdjusteds[i].date
-                    || ema21s[i].date !== dailyAdjusteds[i].date
-                    || ema26s[i].date !== dailyAdjusteds[i].date
-                    || ema34s[i].date !== dailyAdjusteds[i].date
-                    || ema50s[i].date !== dailyAdjusteds[i].date
-                    || ema100s[i].date !== dailyAdjusteds[i].date
-                    || ema200s[i].date !== dailyAdjusteds[i].date
-                    || macds[i].date !== dailyAdjusteds[i].date
-                    || rsis[i].date !== dailyAdjusteds[i].date
-                    || bbands[i].date !== dailyAdjusteds[i].date) {
-
+                if (
+                    sma15s[i].date !== dailyAdjusteds[i].date ||
+                    sma20s[i].date !== dailyAdjusteds[i].date ||
+                    sma50s[i].date !== dailyAdjusteds[i].date ||
+                    sma100s[i].date !== dailyAdjusteds[i].date ||
+                    sma200s[i].date !== dailyAdjusteds[i].date ||
+                    ema5s[i].date !== dailyAdjusteds[i].date ||
+                    ema8s[i].date !== dailyAdjusteds[i].date ||
+                    ema9s[i].date !== dailyAdjusteds[i].date ||
+                    ema12s[i].date !== dailyAdjusteds[i].date ||
+                    ema13s[i].date !== dailyAdjusteds[i].date ||
+                    ema20s[i].date !== dailyAdjusteds[i].date ||
+                    ema21s[i].date !== dailyAdjusteds[i].date ||
+                    ema26s[i].date !== dailyAdjusteds[i].date ||
+                    ema34s[i].date !== dailyAdjusteds[i].date ||
+                    ema50s[i].date !== dailyAdjusteds[i].date ||
+                    ema100s[i].date !== dailyAdjusteds[i].date ||
+                    ema200s[i].date !== dailyAdjusteds[i].date ||
+                    macds[i].date !== dailyAdjusteds[i].date ||
+                    rsis[i].date !== dailyAdjusteds[i].date ||
+                    bbands[i].date !== dailyAdjusteds[i].date
+                ) {
                     throw new Error('diff. date ' + symbol);
                 }
             }
@@ -217,7 +222,7 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
 }
 
 const args = process.argv.slice(2);
-const symbols = (args[0] === '*') ? ALL_SYMBOLS : args[0].split(',');
+const symbols = args[0] === '*' ? ALL_SYMBOLS : args[0].split(',');
 const since = args[1] || '2018-01-01';
 
 logger.info('getting data for VIX since ' + since + ' ...');
@@ -225,7 +230,11 @@ updateVix(since);
 
 logger.info('getting data for ' + symbols + ' since ' + since + ' ...');
 
-pMap(symbols.map(symbol => ({ symbol, since })), updateSymbol, { concurrency: 1, stopOnError: false }).then(() => {
+pMap(
+    symbols.map((symbol) => ({ symbol, since })),
+    updateSymbol,
+    { concurrency: 1, stopOnError: false },
+).then(() => {
     logger.info('done, waiting to finish ...');
     db.disconnect();
 });

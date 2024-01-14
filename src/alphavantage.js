@@ -1,11 +1,9 @@
-'use strict';
-
-const fetch = require('node-fetch');
-const http = require('http');
-const https = require('https');
-const { default: PQueue } = require('p-queue');
-const querystring = require('querystring');
-const winston = require('winston');
+import fetch from 'node-fetch';
+import http from 'http';
+import https from 'https';
+import PQueue from 'p-queue';
+import querystring from 'querystring';
+import winston from 'winston';
 
 const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
@@ -24,8 +22,8 @@ const httpsAgent = new https.Agent({
     keepAlive: true,
 });
 const options = {
-    agent: _parsedURL => {
-        return (_parsedURL.protocol === 'http:') ? httpAgent : httpsAgent;
+    agent: (_parsedURL) => {
+        return _parsedURL.protocol === 'http:' ? httpAgent : httpsAgent;
     },
 };
 
@@ -34,7 +32,7 @@ const INTERVAL_CAP = Number(process.env.ALPHAVANTAGE_INTERVAL_CAP) || 5;
 
 // Request limit of 5 per minute for Alpha Vantage with free key; max. 500 per day not considered here
 const queue = new PQueue({ concurrency: 5, interval: 60 * 1000, intervalCap: INTERVAL_CAP });
-queue.on('error', err => {
+queue.on('error', (err) => {
     console.error('queue error' + err);
 });
 
@@ -52,8 +50,6 @@ const TA_MACD = 'Technical Analysis: MACD';
 const TA_BBANDS = 'Technical Analysis: BBANDS';
 const TA_RSI = 'Technical Analysis: RSI';
 
-var exports = module.exports = {};
-
 function getApiKey() {
     if (API_KEY) return API_KEY;
 
@@ -65,7 +61,7 @@ function getApiKey() {
 }
 
 function normalizeKey(key) {
-    return (/^[A-Z][a-z]/.test(key)) ? (key[0].toLowerCase() + key.substr(1)) : key;
+    return /^[A-Z][a-z]/.test(key) ? key[0].toLowerCase() + key.substr(1) : key;
 }
 
 // see https://github.com/dynamoose/dynamoose/issues/209#issuecomment-374258965
@@ -74,13 +70,16 @@ async function handleThroughput(callback, params, attempt = 1) {
     const CAP = 60000; // max. back off time in millis
 
     const result = await callback(params);
-    if (result[NOTE] && result[NOTE].startsWith('Thank you for using Alpha Vantage! Our standard API call frequency is ')) {
+    if (
+        result[NOTE] &&
+        result[NOTE].startsWith('Thank you for using Alpha Vantage! Our standard API call frequency is ')
+    ) {
         // exponential backoff with jitter,
         // see https://aws.amazon.com/de/blogs/architecture/exponential-backoff-and-jitter/
         const temp = Math.min(CAP, BACK_OFF * Math.pow(2, attempt));
-        const sleep = temp / 2 + Math.floor(Math.random() * temp / 2);
+        const sleep = temp / 2 + Math.floor((Math.random() * temp) / 2);
         logger.debug('Alphavantage: sleeping for ' + sleep + ' on attempt ' + attempt + ', temp ' + temp);
-        await new Promise(resolve => setTimeout(resolve, sleep));
+        await new Promise((resolve) => setTimeout(resolve, sleep));
         return handleThroughput(callback, params, ++attempt);
     }
     return result;
@@ -116,7 +115,7 @@ async function queryTechnicalIndicators(qs, resultKey) {
     return resultArr;
 }
 
-exports.queryCompanyOverview = async(symbol) => {
+export async function queryCompanyOverview(symbol) {
     const qs = {
         function: 'OVERVIEW',
         symbol: symbol,
@@ -124,13 +123,13 @@ exports.queryCompanyOverview = async(symbol) => {
     };
     const result = await handleThroughput(query, qs);
     const overview = {};
-    Object.keys(result).forEach(key => {
+    Object.keys(result).forEach((key) => {
         overview[normalizeKey(key)] = result[key];
     });
     return overview;
-};
+}
 
-exports.queryDailyAdjusted = async(symbol, since) => {
+export async function queryDailyAdjusted(symbol, since) {
     const qs = {
         function: 'TIME_SERIES_DAILY_ADJUSTED',
         symbol: symbol,
@@ -138,23 +137,25 @@ exports.queryDailyAdjusted = async(symbol, since) => {
         apikey: getApiKey(),
     };
     const values = await queryTechnicalIndicators(qs, TS_DAILY);
-    return values.filter(value => value.date >= since).map(value => {
-        return {
-            symbol: symbol,
-            date: value.date,
-            open: Number(value['1. open']),
-            high: Number(value['2. high']),
-            low: Number(value['3. low']),
-            close: Number(value['4. close']),
-            adjustedClose: Number(value['5. adjusted close']),
-            volume: Number(value['6. volume']),
-            dividendAmount: Number(value['7. dividend amount']),
-            splitCoefficient: Number(value['8. split coefficient']),
-        };
-    });
-};
+    return values
+        .filter((value) => value.date >= since)
+        .map((value) => {
+            return {
+                symbol: symbol,
+                date: value.date,
+                open: Number(value['1. open']),
+                high: Number(value['2. high']),
+                low: Number(value['3. low']),
+                close: Number(value['4. close']),
+                adjustedClose: Number(value['5. adjusted close']),
+                volume: Number(value['6. volume']),
+                dividendAmount: Number(value['7. dividend amount']),
+                splitCoefficient: Number(value['8. split coefficient']),
+            };
+        });
+}
 
-exports.querySMA = async(symbol, timePeriod, since) => {
+export async function querySMA(symbol, timePeriod, since) {
     const qs = {
         function: 'SMA',
         symbol: symbol,
@@ -164,12 +165,14 @@ exports.querySMA = async(symbol, timePeriod, since) => {
         apikey: getApiKey(),
     };
     const smas = await queryTechnicalIndicators(qs, TA_SMA);
-    return smas.filter(sma => sma.date >= since).map(sma => {
-        return { symbol: symbol, date: sma.date, sma: Number(sma.SMA) };
-    });
-};
+    return smas
+        .filter((sma) => sma.date >= since)
+        .map((sma) => {
+            return { symbol: symbol, date: sma.date, sma: Number(sma.SMA) };
+        });
+}
 
-exports.queryEMA = async(symbol, timePeriod, since) => {
+export async function queryEMA(symbol, timePeriod, since) {
     const qs = {
         function: 'EMA',
         symbol: symbol,
@@ -179,12 +182,14 @@ exports.queryEMA = async(symbol, timePeriod, since) => {
         apikey: getApiKey(),
     };
     const emas = await queryTechnicalIndicators(qs, TA_EMA);
-    return emas.filter(ema => ema.date >= since).map(ema => {
-        return { symbol: symbol, date: ema.date, ema: Number(ema.EMA) };
-    });
-};
+    return emas
+        .filter((ema) => ema.date >= since)
+        .map((ema) => {
+            return { symbol: symbol, date: ema.date, ema: Number(ema.EMA) };
+        });
+}
 
-exports.queryMACD = async(symbol, since) => {
+export async function queryMACD(symbol, since) {
     const qs = {
         function: 'MACD',
         symbol: symbol,
@@ -193,18 +198,20 @@ exports.queryMACD = async(symbol, since) => {
         apikey: getApiKey(),
     };
     const macds = await queryTechnicalIndicators(qs, TA_MACD);
-    return macds.filter(macd => macd.date >= since).map(macd => {
-        return {
-            symbol: symbol,
-            date: macd.date,
-            macd: Number(macd.MACD),
-            hist: Number(macd.MACD_Hist),
-            signal: Number(macd.MACD_Signal),
-        };
-    });
-};
+    return macds
+        .filter((macd) => macd.date >= since)
+        .map((macd) => {
+            return {
+                symbol: symbol,
+                date: macd.date,
+                macd: Number(macd.MACD),
+                hist: Number(macd.MACD_Hist),
+                signal: Number(macd.MACD_Signal),
+            };
+        });
+}
 
-exports.queryRSI = async(symbol, timePeriod, since) => {
+export async function queryRSI(symbol, timePeriod, since) {
     const qs = {
         function: 'RSI',
         symbol: symbol,
@@ -214,16 +221,18 @@ exports.queryRSI = async(symbol, timePeriod, since) => {
         apikey: getApiKey(),
     };
     const rsis = await queryTechnicalIndicators(qs, TA_RSI);
-    return rsis.filter(rsi => rsi.date >= since).map(rsi => {
-        return {
-            symbol: symbol,
-            date: rsi.date,
-            rsi: Number(rsi.RSI),
-        };
-    });
-};
+    return rsis
+        .filter((rsi) => rsi.date >= since)
+        .map((rsi) => {
+            return {
+                symbol: symbol,
+                date: rsi.date,
+                rsi: Number(rsi.RSI),
+            };
+        });
+}
 
-exports.queryBBands = async(symbol, timePeriod, since) => {
+export async function queryBBands(symbol, timePeriod, since) {
     const qs = {
         function: 'BBANDS',
         symbol: symbol,
@@ -233,13 +242,15 @@ exports.queryBBands = async(symbol, timePeriod, since) => {
         apikey: getApiKey(),
     };
     const bbandsArr = await queryTechnicalIndicators(qs, TA_BBANDS);
-    return bbandsArr.filter(bbands => bbands.date >= since).map(bbands => {
-        return {
-            symbol: symbol,
-            date: bbands.date,
-            lower: Number(bbands['Real Lower Band']),
-            upper: Number(bbands['Real Upper Band']),
-            middle: Number(bbands['Real Middle Band']),
-        };
-    });
-};
+    return bbandsArr
+        .filter((bbands) => bbands.date >= since)
+        .map((bbands) => {
+            return {
+                symbol: symbol,
+                date: bbands.date,
+                lower: Number(bbands['Real Lower Band']),
+                upper: Number(bbands['Real Upper Band']),
+                middle: Number(bbands['Real Middle Band']),
+            };
+        });
+}

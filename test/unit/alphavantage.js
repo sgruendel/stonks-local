@@ -1,12 +1,10 @@
-'use strict';
+import { expect } from 'chai';
 
-const expect = require('chai').expect;
-
-const alphavantage = require('../../src/alphavantage');
+import * as alphavantage from '../../src/alphavantage.js';
 
 describe('alphavantage', () => {
     describe('#queryCompanyOverview()', () => {
-        it('should work for AMZN', async() => {
+        it('should work for AMZN', async () => {
             const result = await alphavantage.queryCompanyOverview('AMZN');
             expect(result.symbol).to.equal('AMZN');
             expect(result.name).to.equal('Amazon.com Inc');
@@ -14,7 +12,7 @@ describe('alphavantage', () => {
     });
 
     describe('#queryDailyAdjusted()', () => {
-        it('should work for AMZN since 2020-12-31', async() => {
+        it('should work for AMZN since 2020-12-31', async () => {
             const results = await alphavantage.queryDailyAdjusted('AMZN', '2020-12-31');
             expect(results.length).greaterThan(1);
             const result = results.slice(-1)[0];
@@ -30,14 +28,14 @@ describe('alphavantage', () => {
             expect(result.splitCoefficient).to.equal(1);
         });
 
-        it('should work for AMZN since <future date>', async() => {
+        it('should work for AMZN since <future date>', async () => {
             const results = await alphavantage.queryDailyAdjusted('AMZN', '9999-12-31');
             expect(results.length).equal(0);
         });
     });
 
     describe('#querySMA()', () => {
-        it('should work for AMZN since 2020-12-31', async() => {
+        it('should work for AMZN since 2020-12-31', async () => {
             const results = await alphavantage.querySMA('AMZN', 38, '2020-12-31');
             expect(results.length).greaterThan(1);
             const result = results.slice(-1)[0];
@@ -46,16 +44,22 @@ describe('alphavantage', () => {
             expect(result.sma).to.equal(158.6455);
         });
 
-        it('should work for AMZN since <future date>', async() => {
+        it('should work for AMZN since <future date>', async () => {
             const results = await alphavantage.querySMA('AMZN', 38, '9999-12-31');
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', done => {
-            alphavantage.querySMA('AMZN', 'abc', '2021-01-04')
-                .then(() => { throw new Error("shouldn't be here"); })
-                .catch(err => {
-                    if (err.message !== 'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for SMA.') {
+        it('should fail for invalid time period', (done) => {
+            alphavantage
+                .querySMA('AMZN', 'abc', '2021-01-04')
+                .then(() => {
+                    throw new Error("shouldn't be here");
+                })
+                .catch((err) => {
+                    if (
+                        err.message !==
+                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for SMA.'
+                    ) {
                         // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
                         console.error(err);
                         done();
@@ -66,7 +70,7 @@ describe('alphavantage', () => {
     });
 
     describe('#queryEMA()', () => {
-        it('should work for AMZN since 2020-12-31', async() => {
+        it('should work for AMZN since 2020-12-31', async () => {
             const results = await alphavantage.queryEMA('AMZN', 50, '2020-12-31');
             expect(results.length).greaterThan(1);
             const result = results.slice(-1)[0];
@@ -75,16 +79,22 @@ describe('alphavantage', () => {
             expect(result.ema).to.equal(159.33);
         });
 
-        it('should work for AMZN since <future date>', async() => {
+        it('should work for AMZN since <future date>', async () => {
             const results = await alphavantage.queryEMA('AMZN', 50, '9999-12-31');
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', done => {
-            alphavantage.queryEMA('AMZN', 'abc', '2021-01-04')
-                .then(() => { throw new Error("shouldn't be here"); })
-                .catch(err => {
-                    if (err.message !== 'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for EMA.') {
+        it('should fail for invalid time period', (done) => {
+            alphavantage
+                .queryEMA('AMZN', 'abc', '2021-01-04')
+                .then(() => {
+                    throw new Error("shouldn't be here");
+                })
+                .catch((err) => {
+                    if (
+                        err.message !==
+                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for EMA.'
+                    ) {
                         // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
                         console.error(err);
                         done();
@@ -95,7 +105,7 @@ describe('alphavantage', () => {
     });
 
     describe('#queryMACD()', () => {
-        it('should work for AMZN since 2020-12-31', async() => {
+        it('should work for AMZN since 2020-12-31', async () => {
             const results = await alphavantage.queryMACD('AMZN', '2020-12-31');
             expect(results.length).greaterThan(1);
             const result = results.slice(-1)[0];
@@ -106,14 +116,14 @@ describe('alphavantage', () => {
             expect(result.signal).to.equal(0.8915);
         });
 
-        it('should work for AMZN since <future date>', async() => {
+        it('should work for AMZN since <future date>', async () => {
             const results = await alphavantage.queryMACD('AMZN', '9999-12-31');
             expect(results.length).equal(0);
         });
     });
 
     describe('#queryRSI()', () => {
-        it('should work for AMZN since 2020-12-31', async() => {
+        it('should work for AMZN since 2020-12-31', async () => {
             const results = await alphavantage.queryRSI('AMZN', 14, '2020-12-31');
             expect(results.length).greaterThan(1);
             const result = results.slice(-1)[0];
@@ -122,16 +132,22 @@ describe('alphavantage', () => {
             expect(result.rsi).to.equal(56.0688);
         });
 
-        it('should work for AMZN since <future date>', async() => {
+        it('should work for AMZN since <future date>', async () => {
             const results = await alphavantage.queryRSI('AMZN', 14, '9999-12-31');
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', done => {
-            alphavantage.queryRSI('AMZN', 'abc', '2021-01-04')
-                .then(() => { throw new Error("shouldn't be here"); })
-                .catch(err => {
-                    if (err.message !== 'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for RSI.') {
+        it('should fail for invalid time period', (done) => {
+            alphavantage
+                .queryRSI('AMZN', 'abc', '2021-01-04')
+                .then(() => {
+                    throw new Error("shouldn't be here");
+                })
+                .catch((err) => {
+                    if (
+                        err.message !==
+                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for RSI.'
+                    ) {
                         // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
                         console.error(err);
                         done();
@@ -142,7 +158,7 @@ describe('alphavantage', () => {
     });
 
     describe('#queryBBands()', () => {
-        it('should work for AMZN since 2020-12-31', async() => {
+        it('should work for AMZN since 2020-12-31', async () => {
             const results = await alphavantage.queryBBands('AMZN', 20, '2020-12-31');
             expect(results.length).greaterThan(1);
             const result = results.slice(-1)[0];
@@ -153,16 +169,22 @@ describe('alphavantage', () => {
             expect(result.middle).to.equal(159.8172);
         });
 
-        it('should work for AMZN since <future date>', async() => {
+        it('should work for AMZN since <future date>', async () => {
             const results = await alphavantage.queryBBands('AMZN', 20, '9999-12-31');
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', done => {
-            alphavantage.queryBBands('AMZN', 'abc', '2021-01-04')
-                .then(() => { throw new Error("shouldn't be here"); })
-                .catch(err => {
-                    if (err.message !== 'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for BBANDS.') {
+        it('should fail for invalid time period', (done) => {
+            alphavantage
+                .queryBBands('AMZN', 'abc', '2021-01-04')
+                .then(() => {
+                    throw new Error("shouldn't be here");
+                })
+                .catch((err) => {
+                    if (
+                        err.message !==
+                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for BBANDS.'
+                    ) {
                         // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
                         console.error(err);
                         done();

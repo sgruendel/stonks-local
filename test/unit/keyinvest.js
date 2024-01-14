@@ -1,12 +1,10 @@
-'use strict';
+import { expect } from 'chai';
 
-const expect = require('chai').expect;
-
-const keyinvest = require('../../src/keyinvest');
+import * as keyinvest from '../../src/keyinvest.js';
 
 describe('keyinvest', () => {
     describe('#list()', () => {
-        it('should work for AMZN', async() => {
+        it('should work for AMZN', async () => {
             const result = await keyinvest.list('AMZN');
             console.log(result);
             expect(result.status).to.equal('OK');

@@ -1,16 +1,18 @@
-'use strict';
+import { expect } from 'chai';
 
-const expect = require('chai').expect;
-
-const db = require('../../src/db');
+import * as db from '../../src/db.js';
 
 describe('db', () => {
+    after(() => {
+        console.log('disconnecting from db');
+        db.disconnect();
+    });
+
     describe('#handleThroughput()', () => {
         it('should work for normal case', () => {
-            return db.handleThroughput(params => {
+            return db.handleThroughput((params) => {
                 expect(params).to.equal('123');
-            },
-            '123');
+            }, '123');
         });
 
         it('should work for ProvisionedThroughputExceededException', () => {
@@ -22,20 +24,23 @@ describe('db', () => {
             }
 
             let thrown = false;
-            return db.handleThroughput(params => {
+            return db.handleThroughput((params) => {
                 if (!thrown) {
                     thrown = true;
                     throw new DynamoDBError('ProvisionedThroughputExceededException');
                 }
                 expect(params).to.equal('123');
-            },
-            '123');
+            }, '123');
         });
 
-        it('should work for other Exception', done => {
-            db.handleThroughput(params => { throw new Error('expected exception'); }, '123')
-                .then(() => { throw new Error("shouldn't be here"); })
-                .catch(err => {
+        it('should work for other Exception', (done) => {
+            db.handleThroughput((params) => {
+                throw new Error('expected exception');
+            }, '123')
+                .then(() => {
+                    throw new Error("shouldn't be here");
+                })
+                .catch((err) => {
                     if (err.message !== 'expected exception') {
                         // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
                         console.error(err);

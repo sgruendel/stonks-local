@@ -1,7 +1,6 @@
-'use strict';
-
-const dayjs = require('dayjs');
-const winston = require('winston');
+import fs from 'fs';
+import dayjs from 'dayjs';
+import winston from 'winston';
 
 const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
@@ -13,9 +12,9 @@ const logger = winston.createLogger({
     exitOnError: false,
 });
 
-const db = require('./db');
+import * as db from './db.js';
 
-const ALL_SYMBOLS = require('./symbols.json');
+const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json'));
 const DATE_FORMAT = 'YYYY-MM-DD';
 
 let cash = 1000000;
@@ -24,7 +23,9 @@ const MAX_BUY = 5000;
 const TRANSACTION_FEE = 7.0;
 const TAX_RATE = 0.25;
 let depot = [];
-ALL_SYMBOLS.forEach(symbol => { depot[symbol] = { amount: 0, avgSharePrice: 0.0, profit: 0.0 }; });
+ALL_SYMBOLS.forEach((symbol) => {
+    depot[symbol] = { amount: 0, avgSharePrice: 0.0, profit: 0.0 };
+});
 let transactionFees = 0;
 let taxes = 0;
 
@@ -33,7 +34,9 @@ let closedBelowSma50 = [];
 
 // Last 20 daily lows for symbol
 let lows = [];
-ALL_SYMBOLS.forEach(symbol => { lows[symbol] = []; });
+ALL_SYMBOLS.forEach((symbol) => {
+    lows[symbol] = [];
+});
 
 const swingLow = (symbol) => {
     return lows[symbol].length === 0 ? undefined : Math.min(...lows[symbol]);
@@ -50,7 +53,10 @@ const filterBefore = (symbol, date) => {
 };
 
 async function getDailyAdjustedFor(symbol, date) {
-    const dailyAdjusted = await db.DailyAdjusted.find(filterBefore(symbol, date)).limit(1).sort({ date: 'desc' }).exec();
+    const dailyAdjusted = await db.DailyAdjusted.find(filterBefore(symbol, date))
+        .limit(1)
+        .sort({ date: 'desc' })
+        .exec();
     return dailyAdjusted[0];
 }
 
@@ -63,12 +69,15 @@ async function getTechnicalIndicatorsFor(symbol, date) {
 }
 
 async function getVIXsFor(date) {
-    const vixs = await db.VIXs.find({ date: { $lte: date.format(DATE_FORMAT) } }).limit(2).sort({ date: 'desc' }).exec();
+    const vixs = await db.VIXs.find({ date: { $lte: date.format(DATE_FORMAT) } })
+        .limit(2)
+        .sort({ date: 'desc' })
+        .exec();
     return vixs;
 }
 
 async function calcDepot(date) {
-    const values = Object.keys(depot).map(async symbol => {
+    const values = Object.keys(depot).map(async (symbol) => {
         const amount = depot[symbol].amount;
         return amount === 0 ? 0 : amount * (await getDailyAdjustedFor(symbol, date)).adjustedClose;
     });
@@ -84,10 +93,11 @@ async function buy(date, symbol, dailyAdjusted) {
     }
     if (cash >= MIN_BUY && cash >= sharePrice + TRANSACTION_FEE) {
         const amount = Math.floor(Math.min(MAX_BUY, cash - TRANSACTION_FEE) / sharePrice);
-        cash -= (amount * sharePrice) + TRANSACTION_FEE;
+        cash -= amount * sharePrice + TRANSACTION_FEE;
         if (depot[symbol].amount > 0) {
             const newAmount = depot[symbol].amount + amount;
-            const newAvgSharePrice = (depot[symbol].amount * depot[symbol].avgSharePrice + amount * sharePrice) / newAmount;
+            const newAvgSharePrice =
+                (depot[symbol].amount * depot[symbol].avgSharePrice + amount * sharePrice) / newAmount;
             depot[symbol].amount = newAmount;
             depot[symbol].avgSharePrice = newAvgSharePrice;
         } else {
@@ -102,12 +112,33 @@ info: sum of cash+depot is 1.008.156,3
 info: transaction fees / taxes (already included in cash): 15.225/64.634,97
         */
         transactionFees += TRANSACTION_FEE;
-        logger.info('bought ' + amount + ' of ' + symbol + ' on ' + date.format(DATE_FORMAT) + ' for ' + FMT.format(sharePrice)
-            + ', now have ' + depot[symbol].amount + ' with avg share price of ' + FMT.format(depot[symbol].avgSharePrice)
-            + ', cash is now ' + FMT.format(cash));
+        logger.info(
+            'bought ' +
+                amount +
+                ' of ' +
+                symbol +
+                ' on ' +
+                date.format(DATE_FORMAT) +
+                ' for ' +
+                FMT.format(sharePrice) +
+                ', now have ' +
+                depot[symbol].amount +
+                ' with avg share price of ' +
+                FMT.format(depot[symbol].avgSharePrice) +
+                ', cash is now ' +
+                FMT.format(cash),
+        );
         return true;
     } else {
-        logger.info('cant buy ' + symbol + ' on ' + date.format(DATE_FORMAT) + ' for ' + FMT.format(sharePrice) + ', not enough $ :(');
+        logger.info(
+            'cant buy ' +
+                symbol +
+                ' on ' +
+                date.format(DATE_FORMAT) +
+                ' for ' +
+                FMT.format(sharePrice) +
+                ', not enough $ :(',
+        );
     }
 }
 
@@ -119,14 +150,25 @@ async function sell(date, symbol, dailyAdjusted, force = false, sellPrice = unde
             sellPrice = dailyAdjusted.adjustedClose;
         }
         if (force || sellPrice > depot[symbol].avgSharePrice) {
-            const profit = (depot[symbol].amount * sellPrice) - (depot[symbol].amount * depot[symbol].avgSharePrice);
+            const profit = depot[symbol].amount * sellPrice - depot[symbol].amount * depot[symbol].avgSharePrice;
             const tax = profit * TAX_RATE;
-            cash += (depot[symbol].amount * sellPrice) - TRANSACTION_FEE - tax;
+            cash += depot[symbol].amount * sellPrice - TRANSACTION_FEE - tax;
             transactionFees += TRANSACTION_FEE;
             taxes += tax;
-            logger.info('sold ' + depot[symbol].amount + ' of ' + symbol + ' on ' + date.format(DATE_FORMAT) + ' for ' + FMT.format(sellPrice)
-                + ', profit is ' + FMT.format(profit)
-                + ', cash is now ' + FMT.format(cash));
+            logger.info(
+                'sold ' +
+                    depot[symbol].amount +
+                    ' of ' +
+                    symbol +
+                    ' on ' +
+                    date.format(DATE_FORMAT) +
+                    ' for ' +
+                    FMT.format(sellPrice) +
+                    ', profit is ' +
+                    FMT.format(profit) +
+                    ', cash is now ' +
+                    FMT.format(cash),
+            );
 
             depot[symbol].amount = 0;
             depot[symbol].avgSharePrice = 0.0;
@@ -165,7 +207,7 @@ function buyItMacdHist(tiBefore, tiCurrent) {
             // TODO only buy if MACD < 0
             // TODO don't buy if RSI <50
             // TODO only if above SMA50 or EMA100
-            return true;//tiCurrent.macd < 2.0 && tiCurrent.rsi < 50.0*/;
+            return true; //tiCurrent.macd < 2.0 && tiCurrent.rsi < 50.0*/;
         }
     }
 }
@@ -176,7 +218,7 @@ function sellItMacdHist(tiBefore, tiCurrent) {
         if (tiBefore.macdHist > 0 && tiCurrent.macdHist < 0) {
             // TODO only sell if MACD > 0
             // TODO don't sell if RSI >50
-            return true;//tiCurrent.macd > -2.0 /*&& tiCurrent.rsi > 50.0*/;
+            return true; //tiCurrent.macd > -2.0 /*&& tiCurrent.rsi > 50.0*/;
         }
     }
 }
@@ -198,8 +240,9 @@ function sellItBB(tiBefore, tiCurrent, dailyAdjusted) {
             // TODO only buy if MACD < 0
             // TODO don't buy if RSI <50
             // TODO only if above SMA50 or EMA100
-            return dailyAdjusted.adjustedClose > tiBefore.bbandUpper
-                && dailyAdjusted.adjustedClose < tiCurrent.bbandUpper;
+            return (
+                dailyAdjusted.adjustedClose > tiBefore.bbandUpper && dailyAdjusted.adjustedClose < tiCurrent.bbandUpper
+            );
         }
     }
 }
@@ -211,7 +254,7 @@ function buyItRSI(tiBefore, tiCurrent, dailyAdjusted) {
             // TODO only if not a red day (close > open)
             // TODO only if lower (upper?) BBBand is rising
             // TODO dailyAdjusted.adjustedClose > tiCurrent.bbandLower;
-            return true;//tiBefore.bbandUpper < tiCurrent.bbandUpper;
+            return true; //tiBefore.bbandUpper < tiCurrent.bbandUpper;
         }
     }
 }
@@ -240,7 +283,7 @@ function sellItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
         }
 
         if (tiBefore.ema13 > tiCurrent.ema13) {
-        // if (tiCurrent.ema13 > tiCurrent.ema5 && tiBefore.ema13 > tiCurrent.ema13) {
+            // if (tiCurrent.ema13 > tiCurrent.ema5 && tiBefore.ema13 > tiCurrent.ema13) {
             if (dailyAdjusted.adjustedClose < tiCurrent.ema13) {
                 // throw Error('should never happen: ' + dailyAdjusted.low + '/' + dailyAdjusted.adjustedClose + '/' + tiCurrent.ema13);
                 return dailyAdjusted.adjustedClose;
@@ -257,7 +300,7 @@ function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
         // TODO only if lower (upper?) BBBand is rising
         // TODO dailyAdjusted.adjustedClose > tiCurrent.bbandLower;
         // return true;//tiBefore.bbandUpper < tiCurrent.bbandUpper;
-        return vixs[0].close >= (vixs[0].sma10 * 1.05) && vixs[1].close >= (vixs[1].sma10 * 1.05);
+        return vixs[0].close >= vixs[0].sma10 * 1.05 && vixs[1].close >= vixs[1].sma10 * 1.05;
     }
 }
 
@@ -338,18 +381,27 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
             sellIt = sellItFn(tiBefore, tiCurrent, dailyAdjusted, vixs);
             // TODO Gewinnmitnahme / stop loss via ATR: https://broker-test.de/trading-news/modifizierter-macd-und-die-average-true-range-35691/
 
-            if (buyIt && !sellIt) { // always buy with EMA Clouds, even if sell signal is true
+            if (buyIt && !sellIt) {
+                // always buy with EMA Clouds, even if sell signal is true
                 logger.info(strategy + ': buy ' + symbol + ' on ' + date.format(DATE_FORMAT));
                 result = await buy(date, symbol, dailyAdjusted);
                 if (result) {
                     depot[symbol].daysSinceBuy = 0;
                     depot[symbol].redDaysSinceBuy = 0;
                     const newStopLoss = swingLow(symbol); // TODO stop loss should be significantly lower than buy price
-                    logger.info(symbol + ': current stop loss is ' + depot[symbol].stopLoss + ', new is ' + newStopLoss);
+                    logger.info(
+                        symbol + ': current stop loss is ' + depot[symbol].stopLoss + ', new is ' + newStopLoss,
+                    );
                     if (!depot[symbol].stopLoss || newStopLoss < depot[symbol].stopLoss) {
                         depot[symbol].stopLoss = newStopLoss;
                         depot[symbol].profitTarget = 1.5 * depot[symbol].stopLoss;
-                        logger.info(symbol + ': stop loss now ' + depot[symbol].stopLoss + ', profit target ' + depot[symbol].profitTarget);
+                        logger.info(
+                            symbol +
+                                ': stop loss now ' +
+                                depot[symbol].stopLoss +
+                                ', profit target ' +
+                                depot[symbol].profitTarget,
+                        );
                     }
                 }
             } else if (sellIt && !buyIt) {
@@ -359,8 +411,19 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
                 result = await sell(date, symbol, dailyAdjusted, false, sellIt);
             } else if (sellIt && buyIt) {
                 // shouldn't really happen
-                logger.error(date.format(DATE_FORMAT) + ': ' + symbol + ' ambigous signals: '
-                    + tiCurrent.ema5 + '/' + dailyAdjusted.adjustedClose + '/' + dailyAdjusted.low + '/' + tiCurrent.ema13);
+                logger.error(
+                    date.format(DATE_FORMAT) +
+                        ': ' +
+                        symbol +
+                        ' ambigous signals: ' +
+                        tiCurrent.ema5 +
+                        '/' +
+                        dailyAdjusted.adjustedClose +
+                        '/' +
+                        dailyAdjusted.low +
+                        '/' +
+                        tiCurrent.ema13,
+                );
             }
         }
 
@@ -400,7 +463,7 @@ async function emulateTrades(fromDate, toDate, symbols) {
         if (date.day() >= 1 && date.day() <= 5) {
             // only trade Mon-Fri
             const vixs = await getVIXsFor(date);
-            const trades = symbols.map(async symbol => {
+            const trades = symbols.map(async (symbol) => {
                 try {
                     // return await trade(symbol, date, vixs, buyItMacd, sellItMacd, 'MACD');
 
@@ -417,7 +480,6 @@ async function emulateTrades(fromDate, toDate, symbols) {
                     // since 2019 info: depot value is 1.703.523,4
                     // since 2019 info: sum of cash+depot is 2.038.316,64
                     // since 2019 info: transaction fees / taxes (already included in cash): 9.485/-29.856,94
-
 
                     // return await trade(symbol, date, vixs, buyItEMACloud2, sellItEMACloud2, 'EMA2');
                     // since 2019 info: cash now is 1.477.632,19
@@ -443,24 +505,29 @@ async function emulateTrades(fromDate, toDate, symbols) {
 
     // calc profit for remaining shares
 
-    await Promise.all(Object.keys(depot).map(async symbol => {
-        const stock = depot[symbol];
-        if (stock.amount > 0) {
-            const sellPrice = (await getDailyAdjustedFor(symbol, lastTradingDate)).adjustedClose;
-            const profit = stock.amount * (sellPrice - stock.avgSharePrice);
-            // const tax = (profit > 0) ? profit * TAX_RATE : 0.0;
-            // cash += (depot[symbol].amount * sellPrice) - TRANSACTION_FEE - tax;
-            stock.profit += profit;
-        }
-    }));
+    await Promise.all(
+        Object.keys(depot).map(async (symbol) => {
+            const stock = depot[symbol];
+            if (stock.amount > 0) {
+                const sellPrice = (await getDailyAdjustedFor(symbol, lastTradingDate)).adjustedClose;
+                const profit = stock.amount * (sellPrice - stock.avgSharePrice);
+                // const tax = (profit > 0) ? profit * TAX_RATE : 0.0;
+                // cash += (depot[symbol].amount * sellPrice) - TRANSACTION_FEE - tax;
+                stock.profit += profit;
+            }
+        }),
+    );
 
     const symbolsByProfit = Object.keys(depot).sort((symbol1, symbol2) => {
-        return depot[symbol1].profit < depot[symbol2].profit ? -1
-            : (depot[symbol1].profit > depot[symbol2].profit ? 1 : 0);
+        return depot[symbol1].profit < depot[symbol2].profit
+            ? -1
+            : depot[symbol1].profit > depot[symbol2].profit
+            ? 1
+            : 0;
     });
 
     logger.info('depot (past):');
-    symbolsByProfit.forEach(symbol => {
+    symbolsByProfit.forEach((symbol) => {
         let stock = depot[symbol];
         if (stock.amount === 0 && stock.profit !== 0) {
             stock.avgSharePrice = stock.avgSharePrice.toFixed(2);
@@ -470,7 +537,7 @@ async function emulateTrades(fromDate, toDate, symbols) {
     });
 
     logger.info('depot (current):');
-    symbolsByProfit.forEach(symbol => {
+    symbolsByProfit.forEach((symbol) => {
         let stock = depot[symbol];
         if (stock.amount > 0) {
             stock.avgSharePrice = stock.avgSharePrice.toFixed(2);
@@ -484,14 +551,16 @@ async function emulateTrades(fromDate, toDate, symbols) {
     const depotValue = await calcDepot(lastTradingDate);
     logger.info('depot value is ' + FMT.format(depotValue));
     logger.info('sum of cash+depot is ' + FMT.format(cash + depotValue));
-    logger.info('transaction fees / taxes (already included in cash): ' + FMT.format(transactionFees) + '/' + FMT.format(taxes));
+    logger.info(
+        'transaction fees / taxes (already included in cash): ' + FMT.format(transactionFees) + '/' + FMT.format(taxes),
+    );
 
     logger.info('done, waiting to finish ...');
     db.disconnect();
 }
 
 const args = process.argv.slice(2);
-const symbols = (args[0] === '*') ? ALL_SYMBOLS : args[0].split(',');
+const symbols = args[0] === '*' ? ALL_SYMBOLS : args[0].split(',');
 const from = args[1] || dayjs().subtract(7, 'days').format(DATE_FORMAT);
 const to = args[2] || dayjs().format(DATE_FORMAT);
 
