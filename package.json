@@ -37,7 +37,7 @@
     "chai": "^5.0.0",
     "eslint": "^8.46.0",
     "eslint-config-strongloop": "^2.1.0",
-    "mocha": "^10.2.0"
+    "mocha": "^10.3.0"
   },
   "eslintConfig": {
     "parserOptions": {
