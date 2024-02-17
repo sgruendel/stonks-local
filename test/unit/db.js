@@ -4,7 +4,6 @@ import * as db from '../../src/db.js';
 
 describe('db', () => {
     after(() => {
-        console.log('disconnecting from db');
         db.disconnect();
     });
 
