@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test:unit": "export $(cat .env.local | xargs) && nyc --reporter=lcov --reporter=text mocha test/unit/*",
+    "test:unit": "export $(cat .env.local | xargs) && c8 --reporter=lcov --reporter=text mocha test/unit/*",
     "test:integration": "mocha test/integration/*",
     "test": "npm run test:unit"
   },
@@ -33,11 +33,11 @@
     "winston": "^3.10.0"
   },
   "devDependencies": {
+    "c8": "^9.1.0",
     "chai": "^5.0.0",
     "eslint": "^8.46.0",
     "eslint-config-strongloop": "^2.1.0",
-    "mocha": "^10.2.0",
-    "nyc": "^15.1.0"
+    "mocha": "^10.2.0"
   },
   "eslintConfig": {
     "parserOptions": {
@@ -46,7 +46,7 @@
     },
     "extends": "strongloop",
     "env": {
-      "es2023": true,
+      "es6": true,
       "node": true,
       "mocha": true
     },
