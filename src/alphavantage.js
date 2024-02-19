@@ -28,10 +28,11 @@ const options = {
 };
 
 const API_KEY = process.env.ALPHAVANTAGE_API_KEY;
+const INTERVAL_SECS = Number(process.env.ALPHAVANTAGE_INTERVAL_SECS) || 60;
 const INTERVAL_CAP = Number(process.env.ALPHAVANTAGE_INTERVAL_CAP) || 5;
 
 // Request limit of 5 per minute for Alpha Vantage with free key; max. 500 per day not considered here
-const queue = new PQueue({ concurrency: 5, interval: 60 * 1000, intervalCap: INTERVAL_CAP });
+const queue = new PQueue({ concurrency: 5, interval: INTERVAL_SECS * 1000, intervalCap: INTERVAL_CAP });
 queue.on('error', (err) => {
     console.error('queue error' + err);
 });
@@ -57,11 +58,11 @@ function getApiKey() {
     const min = 1;
     const max = 9999999;
     const apiKey = Math.floor(Math.random() * (max - min)) + min;
-    return apiKey;
+    return apiKey.toString();
 }
 
 function normalizeKey(key) {
-    return /^[A-Z][a-z]/.test(key) ? key[0].toLowerCase() + key.substr(1) : key;
+    return /^[A-Z][a-z]/.test(key) ? key[0].toLowerCase() + key.substring(1) : key;
 }
 
 // see https://github.com/dynamoose/dynamoose/issues/209#issuecomment-374258965
@@ -89,7 +90,7 @@ async function query(qs) {
     logger.debug('calling ' + querystring.stringify(qs));
     const response = await queue.add(() => fetch(BASE_URL + 'query?' + querystring.stringify(qs), options));
     logger.debug('queue size/pending: ' + queue.size + '/' + queue.pending);
-    return response.json();
+    return response && response.json();
 }
 
 async function queryTechnicalIndicators(qs, resultKey) {
