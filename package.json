@@ -1,71 +1,72 @@
 {
-  "name": "stonks",
-  "version": "1.0.0",
-  "description": "Stocks and Technical Indicators using MongoDB",
-  "main": "index.js",
-  "type": "module",
-  "scripts": {
-    "test:unit": "export $(cat .env.local | xargs) && c8 --reporter=lcov --reporter=text mocha test/unit/*",
-    "test:integration": "mocha test/integration/*",
-    "test": "npm run test:unit"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sgruendel/stonks.git"
-  },
-  "keywords": [
-    "stocks",
-    "alphavantage"
-  ],
-  "author": "Stefan Gründel",
-  "license": "GPL-3.0",
-  "bugs": {
-    "url": "https://github.com/sgruendel/stonks/issues"
-  },
-  "homepage": "https://github.com/sgruendel/stonks#readme",
-  "dependencies": {
-    "csv-parser": "^3.0.0",
-    "dayjs": "^1.11.9",
-    "mongoose": "^8.1.2",
-    "node-fetch": "^3.3.2",
-    "p-map": "^7.0.1",
-    "p-queue": "^8.0.1",
-    "winston": "^3.10.0"
-  },
-  "devDependencies": {
-    "c8": "^9.1.0",
-    "chai": "^5.0.0",
-    "eslint": "^8.46.0",
-    "eslint-config-strongloop": "^2.1.0",
-    "mocha": "^10.3.0"
-  },
-  "eslintConfig": {
-    "parserOptions": {
-      "ecmaVersion": 2023,
-      "sourceType": "module"
+    "name": "stonks",
+    "version": "1.0.0",
+    "description": "Stocks and Technical Indicators using MongoDB",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "test:unit": "export $(cat .env.local | grep -v '^#' | xargs) && c8 --reporter=lcov --reporter=text mocha test/unit/*",
+        "test:integration": "mocha test/integration/*",
+        "test": "npm run test:unit"
     },
-    "extends": "strongloop",
-    "env": {
-      "es6": true,
-      "node": true,
-      "mocha": true
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/sgruendel/stonks.git"
     },
-    "rules": {
-      "indent": [
-        "error",
-        4
-      ],
-      "max-len": [
-        "error",
-        120,
-        4,
-        {
-          "ignoreComments": true,
-          "ignoreUrls": true,
-          "ignoreStrings": true,
-          "ignorePattern": "^\\s*var\\s.+=\\s*(require\\s*\\()|(/)"
+    "keywords": [
+        "stocks",
+        "alphavantage"
+    ],
+    "author": "Stefan Gründel",
+    "license": "GPL-3.0",
+    "bugs": {
+        "url": "https://github.com/sgruendel/stonks/issues"
+    },
+    "homepage": "https://github.com/sgruendel/stonks#readme",
+    "dependencies": {
+        "csv-parser": "^3.0.0",
+        "dayjs": "^1.11.9",
+        "mongoose": "^8.1.2",
+        "node-fetch": "^3.3.2",
+        "p-map": "^7.0.1",
+        "p-queue": "^8.0.1",
+        "winston": "^3.10.0"
+    },
+    "devDependencies": {
+        "c8": "^9.1.0",
+        "chai": "^5.0.0",
+        "eslint": "^8.46.0",
+        "eslint-config-strongloop": "^2.1.0",
+        "mocha": "^10.3.0"
+    },
+    "eslintConfig": {
+        "parserOptions": {
+            "ecmaVersion": 2023,
+            "sourceType": "module"
+        },
+        "extends": "strongloop",
+        "env": {
+            "es6": true,
+            "node": true,
+            "mocha": true
+        },
+        "rules": {
+            "indent": [
+                "error",
+                4
+            ],
+            "max-len": [
+                "error",
+                120,
+                4,
+                {
+                    "ignoreComments": true,
+                    "ignoreUrls": true,
+                    "ignoreStrings": true,
+                    "ignorePattern": "^\\s*var\\s.+=\\s*(require\\s*\\()|(/)"
+                }
+            ],
+            "space-before-function-paren": 0
         }
-      ]
     }
-  }
 }
