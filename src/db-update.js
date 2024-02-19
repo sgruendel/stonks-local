@@ -1,7 +1,6 @@
-import fs from 'fs';
-
 import csv from 'csv-parser';
 import dayjs from 'dayjs';
+import fs from 'fs';
 import fetch from 'node-fetch';
 import pMap from 'p-map';
 import winston from 'winston';

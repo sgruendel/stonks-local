@@ -1,5 +1,4 @@
-'use strict';
-
+import fs from 'fs';
 const winston = require('winston');
 
 const logger = winston.createLogger({
@@ -12,18 +11,18 @@ const logger = winston.createLogger({
     exitOnError: false,
 });
 
-const alphavantage = require('./alphavantage');
-const db = require('./db');
+import * as alphavantage from './alphavantage.js';
+import * as db from './db.js';
 
-const ALL_SYMBOLS = require('./symbols.json');
+const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json'));
 
 const args = process.argv.slice(2);
-const symbols = (args[0] === '*') ? ALL_SYMBOLS : args[0].split(',');
+const symbols = args[0] === '*' ? ALL_SYMBOLS : args[0].split(',');
 const since = args[1] || '2018-01-01';
 
 logger.info('patching data for ' + symbols + ' since ' + since + ' ...');
 
-symbols.forEach(async symbol => {
+symbols.forEach(async (symbol) => {
     logger.info(symbol + ' ...');
 
     try {
@@ -38,11 +37,12 @@ symbols.forEach(async symbol => {
             let ti = {};
 
             if (i < sma200s.length) {
-                if (sma20s[i].date !== sma100s[i].date
-                    || sma200s[i].date !== sma20s[i].date
-                    || ema20s[i].date !== sma20s[i].date
-                    || ema100s[i].date !== sma20s[i].date) {
-
+                if (
+                    sma20s[i].date !== sma100s[i].date ||
+                    sma200s[i].date !== sma20s[i].date ||
+                    ema20s[i].date !== sma20s[i].date ||
+                    ema100s[i].date !== sma20s[i].date
+                ) {
                     throw new Error('diff. date ' + symbol);
                 }
             }
@@ -54,9 +54,10 @@ symbols.forEach(async symbol => {
 
             if (Object.getOwnPropertyNames(ti).length >= 1) {
                 const date = sma20s[i].date;
-                await db.handleThroughput(
-                    params => db.TechnicalIndicators.update(params.key, params.updateTI),
-                    { key: { symbol, date }, updateTI: ti });
+                await db.handleThroughput((params) => db.TechnicalIndicators.update(params.key, params.updateTI), {
+                    key: { symbol, date },
+                    updateTI: ti,
+                });
             }
         }
     } catch (err) {
