@@ -2,6 +2,19 @@ import { expect } from 'chai';
 
 import * as alphavantage from '../../src/alphavantage.js';
 
+const expectThrowsAsync = async (method, errorMessage) => {
+    let error = null;
+    try {
+        await method();
+    } catch (err) {
+        error = err;
+    }
+    expect(error).to.be.an('Error');
+    if (errorMessage) {
+        expect(error.message).to.equal(errorMessage);
+    }
+};
+
 describe('alphavantage', () => {
     describe('#queryCompanyOverview()', () => {
         it('should work for AMZN', async () => {
@@ -49,23 +62,11 @@ describe('alphavantage', () => {
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', (done) => {
-            alphavantage
-                .querySMA('AMZN', 'abc', '2021-01-04')
-                .then(() => {
-                    throw new Error("shouldn't be here");
-                })
-                .catch((err) => {
-                    if (
-                        err.message !==
-                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for SMA.'
-                    ) {
-                        // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
-                        console.error(err);
-                        done();
-                    }
-                    done();
-                });
+        it('should fail for invalid time period', async () => {
+            await expectThrowsAsync(
+                () => alphavantage.querySMA('AMZN', 'abc', '2021-01-04'),
+                'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for SMA.',
+            );
         });
     });
 
@@ -84,23 +85,11 @@ describe('alphavantage', () => {
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', (done) => {
-            alphavantage
-                .queryEMA('AMZN', 'abc', '2021-01-04')
-                .then(() => {
-                    throw new Error("shouldn't be here");
-                })
-                .catch((err) => {
-                    if (
-                        err.message !==
-                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for EMA.'
-                    ) {
-                        // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
-                        console.error(err);
-                        done();
-                    }
-                    done();
-                });
+        it('should fail for invalid time period', async () => {
+            await expectThrowsAsync(
+                () => alphavantage.queryEMA('AMZN', 'abc', '2021-01-04'),
+                'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for EMA.',
+            );
         });
     });
 
@@ -137,23 +126,11 @@ describe('alphavantage', () => {
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', (done) => {
-            alphavantage
-                .queryRSI('AMZN', 'abc', '2021-01-04')
-                .then(() => {
-                    throw new Error("shouldn't be here");
-                })
-                .catch((err) => {
-                    if (
-                        err.message !==
-                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for RSI.'
-                    ) {
-                        // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
-                        console.error(err);
-                        done();
-                    }
-                    done();
-                });
+        it('should fail for invalid time period', async () => {
+            await expectThrowsAsync(
+                () => alphavantage.queryRSI('AMZN', 'abc', '2021-01-04'),
+                'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for RSI.',
+            );
         });
     });
 
@@ -174,23 +151,11 @@ describe('alphavantage', () => {
             expect(results.length).equal(0);
         });
 
-        it('should fail for invalid time period', (done) => {
-            alphavantage
-                .queryBBands('AMZN', 'abc', '2021-01-04')
-                .then(() => {
-                    throw new Error("shouldn't be here");
-                })
-                .catch((err) => {
-                    if (
-                        err.message !==
-                        'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for BBANDS.'
-                    ) {
-                        // Evil hack: calling done() twice to make it fail, as re-throwing err here just results in a timeout :(
-                        console.error(err);
-                        done();
-                    }
-                    done();
-                });
+        it('should fail for invalid time period', async () => {
+            await expectThrowsAsync(
+                () => alphavantage.queryBBands('AMZN', 'abc', '2021-01-04'),
+                'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for BBANDS.',
+            );
         });
     });
 });
