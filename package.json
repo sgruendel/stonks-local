@@ -26,14 +26,14 @@
     "dependencies": {
         "csv-parser": "^3.0.0",
         "dayjs": "^1.11.11",
-        "mongoose": "^8.4.4",
+        "mongoose": "^8.5.0",
         "node-fetch": "^3.3.2",
         "p-map": "^7.0.2",
         "p-queue": "^8.0.1",
-        "winston": "^3.13.0"
+        "winston": "^3.13.1"
     },
     "devDependencies": {
-        "@types/node": "^20.14.9",
+        "@types/node": "^20.14.10",
         "c8": "^10.1.2",
         "chai": "^5.1.1",
         "eslint": "^9.6.0",
