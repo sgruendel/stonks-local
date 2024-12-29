@@ -18,7 +18,8 @@ const logger = winston.createLogger({
 import * as alphavantage from './alphavantage.js';
 import * as db from './db.js';
 
-const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json'));
+/** @type {string[]} */
+const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json').toString());
 const DATE_FORMAT = 'YYYY-MM-DD';
 
 // see https://www.investopedia.com/terms/s/sma.asp
@@ -33,7 +34,9 @@ async function updateVix(since) {
     vixHistory.body
         .pipe(
             csv({
+                // eslint-disable-next-line no-unused-vars
                 mapHeaders: ({ header, index }) => header.toLowerCase(),
+                // eslint-disable-next-line no-unused-vars
                 mapValues: ({ header, index, value }) => {
                     if (header === 'date') {
                         return dayjs(value).format(DATE_FORMAT);

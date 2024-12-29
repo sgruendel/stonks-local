@@ -14,7 +14,8 @@ const logger = winston.createLogger({
 
 import * as db from './db.js';
 
-const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json'));
+/** @type {string[]} */
+const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json').toString());
 const DATE_FORMAT = 'YYYY-MM-DD';
 
 let cash = 1000000;
