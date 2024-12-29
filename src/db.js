@@ -35,23 +35,27 @@ export async function handleThroughput(callback, params, attempt = 1) {
     }
 }
 
-export const CompanyOverview = mongoose.model(
-    'CompanyOverview',
-    new mongoose.Schema(
-        {
-            symbol: {
-                type: String,
-                validate: (symbol) => symbol.length > 0,
-                required: true,
-            },
+const companyOverview = new mongoose.Schema(
+    {
+        symbol: {
+            type: String,
+            validate: (symbol) => symbol.length > 0,
+            required: true,
         },
-        {
-            autoCreate: true,
-            strict: false,
-            timestamps: true,
+        date: {
+            type: String,
+            validate: (date) => date.length > 0,
+            required: true,
         },
-    ),
+    },
+    {
+        autoCreate: true,
+        strict: false,
+        timestamps: true,
+    },
 );
+export const CompanyOverview = mongoose.model('CompanyOverview', companyOverview);
+companyOverview.index({ symbol: 1, date: -1 });
 
 const dailyAdjusteds = new mongoose.Schema(
     {

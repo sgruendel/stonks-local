@@ -91,11 +91,13 @@ async function updateSymbolAsync(symbol, since) {
     let allPromises = [];
     try {
         let overview = await alphavantage.queryCompanyOverview(symbol);
-        if (!overview.symbol) {
-            // E.g. BYDDF and XIACF do not exist, so we just insert their symbol
-            overview = { symbol: symbol };
+        if (overview.symbol) {
+            // e.g. BYDDF and XIACF do not
+            overview.date = dayjs().format(DATE_FORMAT);
+            allPromises.push(
+                db.CompanyOverview.updateOne({ symbol: symbol, date: overview.date }, overview, { upsert: true }),
+            );
         }
-        allPromises.push(db.CompanyOverview.updateOne({ symbol: symbol }, overview, { upsert: true }));
 
         const dailyAdjusteds = await alphavantage.queryDailyAdjusted(symbol, since);
         dailyAdjusteds
