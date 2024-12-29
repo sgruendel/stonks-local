@@ -23,36 +23,6 @@
         "test:integration": "mocha test/integration/*",
         "test:unit": "export $(cat .env.local | grep -v '^#' | xargs) && c8 --reporter=lcov --reporter=text mocha test/unit/*"
     },
-    "eslintConfig": {
-        "env": {
-            "es6": true,
-            "mocha": true,
-            "node": true
-        },
-        "parserOptions": {
-            "ecmaVersion": 2023,
-            "sourceType": "module"
-        },
-        "extends": "strongloop",
-        "rules": {
-            "indent": [
-                "error",
-                4
-            ],
-            "max-len": [
-                "error",
-                120,
-                4,
-                {
-                    "ignoreComments": true,
-                    "ignoreUrls": true,
-                    "ignoreStrings": true,
-                    "ignorePattern": "^\\s*var\\s.+=\\s*(require\\s*\\()|(/)"
-                }
-            ],
-            "space-before-function-paren": 0
-        }
-    },
     "dependencies": {
         "csv-parser": "^3.1.0",
         "dayjs": "^1.11.13",
