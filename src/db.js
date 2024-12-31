@@ -57,7 +57,21 @@ const companyOverview = new mongoose.Schema(
 export const CompanyOverview = mongoose.model('CompanyOverview', companyOverview);
 companyOverview.index({ symbol: 1, date: -1 });
 
-const dailyAdjusteds = new mongoose.Schema(
+/** daily adjusted stock data
+ * @typedef DailyAdjusted
+ * @type {object}
+ * @property {string} symbol stock symbol
+ * @property {string} date date of stock data
+ * @property {number} open open price
+ * @property {number} high high price
+ * @property {number} low low price
+ * @property {number} close close price
+ * @property {number} adjustedClose adjusted close price
+ * @property {number} volume volume traded on date
+ * @property {number} dividendAmount dividend amount paid on date
+ * @property {number} splitCoefficient split coefficient on date
+ */
+const dailyAdjusted = new mongoose.Schema(
     {
         symbol: {
             type: String,
@@ -115,10 +129,41 @@ const dailyAdjusteds = new mongoose.Schema(
         timestamps: true,
     },
 );
-dailyAdjusteds.index({ symbol: 1, date: -1 });
-export const DailyAdjusted = mongoose.model('DailyAdjusted', dailyAdjusteds);
+dailyAdjusted.index({ symbol: 1, date: -1 });
+export const DailyAdjusted = mongoose.model('DailyAdjusted', dailyAdjusted);
 
-const technicalIndicators = new mongoose.Schema(
+/** technical indicators for stock
+ * @typedef TechnicalIndicator
+ * @type {object}
+ * @property {string} symbol stock symbol
+ * @property {string} date date of technical indicators
+ * @property {number} sma15 simple moving average over 15 days
+ * @property {number} sma20 simple moving average over 20 days
+ * @property {number} sma50 simple moving average over 50 days
+ * @property {number} sma100 simple moving average over 100 days
+ * @property {number} sma200 simple moving average over 200 days
+ * @property {number} ema5 exponential moving average over 5 days
+ * @property {number} ema8 exponential moving average over 8 days
+ * @property {number} ema9 exponential moving average over 9 days
+ * @property {number} ema12 exponential moving average over 12 days
+ * @property {number} ema13 exponential moving average over 13 days
+ * @property {number} ema20 exponential moving average over 20 days
+ * @property {number} ema21 exponential moving average over 21 days
+ * @property {number} ema26 exponential moving average over 26 days
+ * @property {number} ema34 exponential moving average over 34 days
+ * @property {number} ema50 exponential moving average over 50 days
+ * @property {number} ema100 exponential moving average over 100 days
+ * @property {number} ema200 exponential moving average over 200 days
+ * @property {number} macd moving average convergence divergence
+ * @property {number} macdHist moving average convergence divergence histogram
+ * @property {number} macdSignal moving average convergence divergence signal
+ * @property {number} rsi relative strength index
+ * @property {number} bbandLower lower bollinger band
+ * @property {number} bbandUpper upper bollinger band
+ * @property {number} bbandMiddle middle bollinger band
+ */
+
+const technicalIndicator = new mongoose.Schema(
     {
         symbol: {
             type: String,
@@ -226,10 +271,25 @@ const technicalIndicators = new mongoose.Schema(
         timestamps: true,
     },
 );
-technicalIndicators.index({ symbol: 1, date: -1 });
-export const TechnicalIndicators = mongoose.model('TechnicalIndicators', technicalIndicators);
+technicalIndicator.index({ symbol: 1, date: -1 });
+export const TechnicalIndicator = mongoose.model('TechnicalIndicator', technicalIndicator);
 
-const vixs = new mongoose.Schema(
+/** entry for stock in depot
+ * @typedef VIX
+ * @type {object}
+ * @property {string} date date of VIX
+ * @property {number} open open price
+ * @property {number} high high price
+ * @property {number} low low price
+ * @property {number} close close price
+ * @property {number} sma10 simple moving average over 10 days
+ * @property {number} sma15 simple moving average over 15 days
+ * @property {number} sma20 simple moving average over 20 days
+ * @property {number} sma50 simple moving average over 50 days
+ * @property {number} sma100 simple moving average over 100 days
+ * @property {number} sma200 simple moving average over 200 days
+ */
+const vix = new mongoose.Schema(
     {
         date: {
             type: String,
@@ -286,5 +346,5 @@ const vixs = new mongoose.Schema(
         timestamps: true,
     },
 );
-vixs.index({ date: -1 });
-export const VIXs = mongoose.model('VIXs', vixs);
+vix.index({ date: -1 });
+export const VIX = mongoose.model('VIX', vix);

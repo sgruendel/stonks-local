@@ -28,8 +28,8 @@ import * as db from './db.js';
 
 /**
  * @callback BuyItFn
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @param {db.VIX[]} vixs VIX data
  * @returns {boolean} true if buy signal
@@ -37,8 +37,8 @@ import * as db from './db.js';
 
 /**
  * @callback SellItFn
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @param {db.VIX[]} vixs VIX data
  * @returns {boolean} true if sell signal
@@ -46,7 +46,9 @@ import * as db from './db.js';
 
 /** @type {string[]} */
 const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json').toString());
+
 const DATE_FORMAT = 'YYYY-MM-DD';
+const DE_NUMBER_FORMAT = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 
 let cash = 1000000;
 const MIN_BUY = 1000;
@@ -68,8 +70,8 @@ ALL_SYMBOLS.forEach((symbol) => {
     };
 });
 
-let transactionFees = 0;
-let taxes = 0;
+let transactionFees = 0.0;
+let taxes = 0.0;
 
 // Has symbol closed below sma50 previously?
 /** @type {Object.<string, boolean>} */
@@ -90,8 +92,6 @@ ALL_SYMBOLS.forEach((symbol) => {
 const swingLow = (symbol) => {
     return lows[symbol].length === 0 ? undefined : Math.min(...lows[symbol]);
 };
-
-const FMT = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 
 /**
  *
@@ -124,12 +124,12 @@ async function getDailyAdjustedFor(symbol, date) {
  *
  * @param {string} symbol
  * @param {dayjs.Dayjs} date
- * @returns {Promise<{tiBefore: db.TechnicalIndicators | undefined, tiCurrent: db.TechnicalIndicators | undefined}>}
+ * @returns {Promise<{tiBefore: db.TechnicalIndicator | undefined, tiCurrent: db.TechnicalIndicator | undefined}>}
  */
 async function getTechnicalIndicatorsFor(symbol, date) {
-    /** @type {db.TechnicalIndicators[]} */
+    /** @type {db.TechnicalIndicator[]} */
     // @ts-ignore
-    const tis = await db.TechnicalIndicators.find(filterOnOrBefore(symbol, date))
+    const tis = await db.TechnicalIndicator.find(filterOnOrBefore(symbol, date))
         .limit(2)
         .sort({ date: 'desc' })
         .exec();
@@ -147,7 +147,7 @@ async function getTechnicalIndicatorsFor(symbol, date) {
 async function getVIXsFor(date) {
     /** @type {db.VIX[]} */
     // @ts-ignore
-    const vixs = await db.VIXs.find({ date: { $lte: date.format(DATE_FORMAT) } })
+    const vixs = await db.VIX.find({ date: { $lte: date.format(DATE_FORMAT) } })
         .limit(2)
         .sort({ date: 'desc' })
         .exec();
@@ -210,13 +210,13 @@ info: transaction fees / taxes (already included in cash): 15.225/64.634,97
                 ' on ' +
                 date.format(DATE_FORMAT) +
                 ' for ' +
-                FMT.format(sharePrice) +
+                DE_NUMBER_FORMAT.format(sharePrice) +
                 ', now have ' +
                 depot[symbol].amount +
                 ' with avg share price of ' +
-                FMT.format(depot[symbol].avgSharePrice) +
+                DE_NUMBER_FORMAT.format(depot[symbol].avgSharePrice) +
                 ', cash is now ' +
-                FMT.format(cash),
+                DE_NUMBER_FORMAT.format(cash),
         );
         return true;
     } else {
@@ -226,7 +226,7 @@ info: transaction fees / taxes (already included in cash): 15.225/64.634,97
                 ' on ' +
                 date.format(DATE_FORMAT) +
                 ' for ' +
-                FMT.format(sharePrice) +
+                DE_NUMBER_FORMAT.format(sharePrice) +
                 ', not enough $ :(',
         );
     }
@@ -262,11 +262,11 @@ async function sell(date, symbol, dailyAdjusted, force = false, sellPrice = unde
                     ' on ' +
                     date.format(DATE_FORMAT) +
                     ' for ' +
-                    FMT.format(sellPrice) +
+                    DE_NUMBER_FORMAT.format(sellPrice) +
                     ', profit is ' +
-                    FMT.format(profit) +
+                    DE_NUMBER_FORMAT.format(profit) +
                     ', cash is now ' +
-                    FMT.format(cash),
+                    DE_NUMBER_FORMAT.format(cash),
             );
 
             depot[symbol].amount = 0;
@@ -299,8 +299,8 @@ function splitAdjust(depot, splitCoefficient) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if buy signal
  */
 function buyItMacd(tiBefore, tiCurrent) {
@@ -315,8 +315,8 @@ function buyItMacd(tiBefore, tiCurrent) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if sell signal
  */
 function sellItMacd(tiBefore, tiCurrent) {
@@ -330,8 +330,8 @@ function sellItMacd(tiBefore, tiCurrent) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if buy signal
  */
 function buyItMacdHist(tiBefore, tiCurrent) {
@@ -347,8 +347,8 @@ function buyItMacdHist(tiBefore, tiCurrent) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if sell signal
  */
 function sellItMacdHist(tiBefore, tiCurrent) {
@@ -364,8 +364,8 @@ function sellItMacdHist(tiBefore, tiCurrent) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @returns {boolean} true if buy signal
  */
@@ -382,8 +382,8 @@ function buyItBB(tiBefore, tiCurrent, dailyAdjusted) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @returns {boolean} true if sell signal
  */
@@ -402,8 +402,8 @@ function sellItBB(tiBefore, tiCurrent, dailyAdjusted) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if buy signal
  */
 function buyItRSI(tiBefore, tiCurrent) {
@@ -420,8 +420,8 @@ function buyItRSI(tiBefore, tiCurrent) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if sell signal
  */
 function sellItRSI(tiBefore, tiCurrent) {
@@ -434,8 +434,8 @@ function sellItRSI(tiBefore, tiCurrent) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @returns {boolean} true if buy signal
  */
@@ -449,8 +449,8 @@ function buyItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @returns {boolean} true if sell signal
  */
@@ -474,8 +474,8 @@ function sellItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
 // see http://www.traderslaboratory.com/forums/topic/6931-combining-rsi-and-vix-into-a-winning-system/
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @param {db.VIX[]} vixs VIX data
  * @returns {boolean} true if sell signal
@@ -493,8 +493,8 @@ function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
 
 /**
  *
- * @param {db.TechnicalIndicators} tiBefore technical indicators for previous trading day
- * @param {db.TechnicalIndicators} tiCurrent technical indicators for current trading day
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
  * @param {db.VIX[]} vixs VIX data
  * @returns {boolean} true if sell signal
@@ -779,13 +779,13 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
         }
     });
 
-    logger.info('cash now is ' + FMT.format(cash));
+    logger.info('cash now is ' + DE_NUMBER_FORMAT.format(cash));
 
     const depotValue = await calcDepot(lastTradingDate);
-    logger.info('depot value is ' + FMT.format(depotValue));
-    logger.info('sum of cash+depot is ' + FMT.format(cash + depotValue));
+    logger.info('depot value is ' + DE_NUMBER_FORMAT.format(depotValue));
+    logger.info('sum of cash+depot is ' + DE_NUMBER_FORMAT.format(cash + depotValue));
     logger.info(
-        'transaction fees / taxes (already included in cash): ' + FMT.format(transactionFees) + '/' + FMT.format(taxes),
+        'transaction fees / taxes (already included in cash): ' + DE_NUMBER_FORMAT.format(transactionFees) + '/' + DE_NUMBER_FORMAT.format(taxes),
     );
 
     logger.info('done, waiting to finish ...');
