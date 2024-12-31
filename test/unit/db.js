@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { describe, it, after } from 'mocha';
 
 import * as db from '../../src/db.js';
 
@@ -71,48 +72,48 @@ describe('db', () => {
         });
     });
 
-    describe('#TechnicalIndicators.symbol.validate()', () => {
+    describe('#TechnicalIndicator.symbol.validate()', () => {
         it('should work for AMZN', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.symbol.validate('AMZN')).to.be.true;
         });
     });
 
-    describe('#TechnicalIndicators.date.validate()', () => {
+    describe('#TechnicalIndicator.date.validate()', () => {
         it('should work for 2021-01-04', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.date.validate('2021-01-04')).to.be.true;
         });
     });
 
-    describe('#TechnicalIndicators.rsi.validate()', () => {
+    describe('#TechnicalIndicator.rsi.validate()', () => {
         it('should fail for -0.1', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.rsi.validate(-0.1)).to.be.false;
         });
 
         it('should work for 0.0', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.rsi.validate(0.0)).to.be.true;
         });
 
         it('should work for 30.0', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.rsi.validate(30.0)).to.be.true;
         });
 
         it('should work for 70.0', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.rsi.validate(70.0)).to.be.true;
         });
 
         it('should work for 100.0', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.rsi.validate(100.0)).to.be.true;
         });
 
         it('should fail for 100.1', () => {
-            const schemaObj = db.TechnicalIndicators.schema.obj;
+            const schemaObj = db.TechnicalIndicator.schema.obj;
             expect(schemaObj.rsi.validate(100.1)).to.be.false;
         });
     });

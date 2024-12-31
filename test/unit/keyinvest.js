@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { describe, it } from 'mocha';
 
 import * as keyinvest from '../../src/keyinvest.js';
 
