@@ -75,7 +75,7 @@ async function updateVix(since) {
                     closes.shift();
                 }
                 if (vix.date >= since) {
-                    allPromises.push(db.VIXs.updateOne({ date: vix.date }, vix, { upsert: true }));
+                    allPromises.push(db.VIX.updateOne({ date: vix.date }, vix, { upsert: true }));
                 }
             });
             Promise.all(allPromises).then(() => {
@@ -215,7 +215,7 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
                 ti.bbandMiddle = bbands[i].middle;
             }
 
-            allPromises.push(db.TechnicalIndicators.updateOne(filter, ti, { upsert: true }));
+            allPromises.push(db.TechnicalIndicator.updateOne(filter, ti, { upsert: true }));
         }
 
         console.log('all promises ' + symbol, allPromises.length);
