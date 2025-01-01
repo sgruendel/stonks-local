@@ -134,7 +134,8 @@ async function updateSymbolAsync(symbol, since) {
         const ema100s = await alphavantage.queryEMA(symbol, 100, since);
         const ema200s = await alphavantage.queryEMA(symbol, 200, since);
         const macds = await alphavantage.queryMACD(symbol, since);
-        const rsis = await alphavantage.queryRSI(symbol, 14, since);
+        const rsi2s = await alphavantage.queryRSI(symbol, 2, since);
+        const rsi14s = await alphavantage.queryRSI(symbol, 14, since);
         const bbands = await alphavantage.queryBBands(symbol, 20, since);
 
         for (let i = 0; i < dailyAdjusteds.length; i++) {
@@ -161,7 +162,8 @@ async function updateSymbolAsync(symbol, since) {
                     ema100s[i].date !== dailyAdjusteds[i].date ||
                     ema200s[i].date !== dailyAdjusteds[i].date ||
                     macds[i].date !== dailyAdjusteds[i].date ||
-                    rsis[i].date !== dailyAdjusteds[i].date ||
+                    rsi2s[i].date !== dailyAdjusteds[i].date ||
+                    rsi14s[i].date !== dailyAdjusteds[i].date ||
                     bbands[i].date !== dailyAdjusteds[i].date
                 ) {
                     throw new Error('diff. date ' + symbol);
@@ -208,7 +210,8 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
                 ti.macdHist = macds[i].hist;
                 ti.macdSignal = macds[i].signal;
             }
-            if (rsis[i]) ti.rsi = rsis[i].rsi;
+            if (rsi2s[i]) ti.rsi2 = rsi2s[i].rsi;
+            if (rsi14s[i]) ti.rsi14 = rsi14s[i].rsi;
             if (bbands[i]) {
                 ti.bbandLower = bbands[i].lower;
                 ti.bbandUpper = bbands[i].upper;

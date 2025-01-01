@@ -157,7 +157,8 @@ export const DailyAdjusted = mongoose.model('DailyAdjusted', dailyAdjusted);
  * @property {number} macd moving average convergence divergence
  * @property {number} macdHist moving average convergence divergence histogram
  * @property {number} macdSignal moving average convergence divergence signal
- * @property {number} rsi relative strength index
+ * @property {number} rsi2 relative strength index over 2 days
+ * @property {number} rsi14 relative strength index over 14 days
  * @property {number} bbandLower lower bollinger band
  * @property {number} bbandUpper upper bollinger band
  * @property {number} bbandMiddle middle bollinger band
@@ -252,7 +253,11 @@ const technicalIndicator = new mongoose.Schema(
         macdSignal: {
             type: Number,
         },
-        rsi: {
+        rsi2: {
+            type: Number,
+            validate: (rsi) => rsi >= 0.0 && rsi <= 100.0,
+        },
+        rsi14: {
             type: Number,
             validate: (rsi) => rsi >= 0.0 && rsi <= 100.0,
         },

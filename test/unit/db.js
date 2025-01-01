@@ -86,35 +86,35 @@ describe('db', () => {
         });
     });
 
-    describe('#TechnicalIndicator.rsi.validate()', () => {
+    describe('#TechnicalIndicator.rsi14.validate()', () => {
         it('should fail for -0.1', () => {
             const schemaObj = db.TechnicalIndicator.schema.obj;
-            expect(schemaObj.rsi.validate(-0.1)).to.be.false;
+            expect(schemaObj.rsi14.validate(-0.1)).to.be.false;
         });
 
         it('should work for 0.0', () => {
             const schemaObj = db.TechnicalIndicator.schema.obj;
-            expect(schemaObj.rsi.validate(0.0)).to.be.true;
+            expect(schemaObj.rsi14.validate(0.0)).to.be.true;
         });
 
         it('should work for 30.0', () => {
             const schemaObj = db.TechnicalIndicator.schema.obj;
-            expect(schemaObj.rsi.validate(30.0)).to.be.true;
+            expect(schemaObj.rsi14.validate(30.0)).to.be.true;
         });
 
         it('should work for 70.0', () => {
             const schemaObj = db.TechnicalIndicator.schema.obj;
-            expect(schemaObj.rsi.validate(70.0)).to.be.true;
+            expect(schemaObj.rsi14.validate(70.0)).to.be.true;
         });
 
         it('should work for 100.0', () => {
             const schemaObj = db.TechnicalIndicator.schema.obj;
-            expect(schemaObj.rsi.validate(100.0)).to.be.true;
+            expect(schemaObj.rsi14.validate(100.0)).to.be.true;
         });
 
         it('should fail for 100.1', () => {
             const schemaObj = db.TechnicalIndicator.schema.obj;
-            expect(schemaObj.rsi.validate(100.1)).to.be.false;
+            expect(schemaObj.rsi14.validate(100.1)).to.be.false;
         });
     });
 });
