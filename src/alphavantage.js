@@ -103,7 +103,7 @@ async function queryTechnicalIndicators(qs, resultKey) {
         throw new Error(result[NOTE]);
     } else if (!result[resultKey]) {
         logger.error(JSON.stringify(result));
-        throw new Error('Invalid reponse for ' + JSON.stringify(qs));
+        throw new Error('Invalid response for ' + JSON.stringify(qs));
     }
 
     const resultObjArr = result[resultKey];
