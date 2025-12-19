@@ -28,11 +28,12 @@ const options = {
 };
 
 const API_KEY = process.env.ALPHAVANTAGE_API_KEY;
-const INTERVAL_SECS = Number(process.env.ALPHAVANTAGE_INTERVAL_SECS) || 60;
-const INTERVAL_CAP = Number(process.env.ALPHAVANTAGE_INTERVAL_CAP) || 5;
+const INTERVAL_SECS = Number(process.env.ALPHAVANTAGE_INTERVAL_SECS) || 1;
+const INTERVAL_CAP = Number(process.env.ALPHAVANTAGE_INTERVAL_CAP) || 1;
 
-// Request limit of 5 per minute for Alpha Vantage with free key; max. 500 per day not considered here
-const queue = new PQueue({ concurrency: 1, interval: INTERVAL_SECS * 1000, intervalCap: INTERVAL_CAP });
+// Request limit of 75 per minute for Alpha Vantage with premium key, but no more than 5 per second;
+// so we default to 1 per second to be safe (i.e. 60 per minute) and concurrency of 5
+const queue = new PQueue({ concurrency: 5, interval: INTERVAL_SECS * 1000, intervalCap: INTERVAL_CAP });
 queue.on('error', (err) => {
     console.error('queue error' + err);
 });
@@ -65,6 +66,13 @@ function normalizeKey(key) {
     return /^[A-Z][a-z]/.test(key) ? key[0].toLowerCase() + key.substring(1) : key;
 }
 
+function isEmptyJson(value) {
+    if (value === null || value === undefined) return true;
+    if (Array.isArray(value)) return value.length === 0;
+    if (typeof value === 'object') return Object.keys(value).length === 0;
+    return false;
+}
+
 // see https://github.com/dynamoose/dynamoose/issues/209#issuecomment-374258965
 async function handleThroughput(callback, params, attempt = 1) {
     const BACK_OFF = 2000; // back off base time in millis
@@ -88,9 +96,21 @@ async function handleThroughput(callback, params, attempt = 1) {
 
 async function query(qs) {
     logger.debug('calling ' + querystring.stringify(qs));
-    const response = await queue.add(() => fetch(BASE_URL + 'query?' + querystring.stringify(qs), options));
-    logger.debug('queue size/pending: ' + queue.size + '/' + queue.pending);
-    return response && response.json();
+    let attempt = 0;
+    while (true) {
+        const response = await queue.add(() => fetch(BASE_URL + 'query?' + querystring.stringify(qs), options));
+        logger.debug('queue size/pending: ' + queue.size + '/' + queue.pending);
+        if (!response.ok) {
+            return response; // contains error info
+        }
+        const json = await response.json();
+        if (!isEmptyJson(json) || attempt++ > 10) {
+            return json;
+        }
+        // empty response, retry
+        logger.warn('empty response, retrying in attempt ' + attempt);
+        await new Promise((resolve) => setTimeout(resolve, INTERVAL_SECS * 1000));
+    }
 }
 
 async function queryTechnicalIndicators(qs, resultKey) {
