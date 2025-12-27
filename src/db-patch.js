@@ -1,5 +1,5 @@
 import fs from 'fs';
-const winston = require('winston');
+import winston from 'winston';
 
 const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
@@ -14,6 +14,7 @@ const logger = winston.createLogger({
 import * as alphavantage from './alphavantage.js';
 import * as db from './db.js';
 
+// @ts-ignore
 const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json'));
 
 const args = process.argv.slice(2);
@@ -47,17 +48,20 @@ symbols.forEach(async (symbol) => {
                 }
             }
             if (sma20s[i]) ti.sma20 = sma20s[i].sma;
-            if (sma100s[i]) ti.sma200 = sma100s[i].sma;
+            if (sma100s[i]) ti.sma100 = sma100s[i].sma;
             if (sma200s[i]) ti.sma200 = sma200s[i].sma;
             if (ema20s[i]) ti.ema20 = ema20s[i].ema;
             if (ema100s[i]) ti.ema100 = ema100s[i].ema;
 
             if (Object.getOwnPropertyNames(ti).length >= 1) {
                 const date = sma20s[i].date;
-                await db.handleThroughput((params) => db.TechnicalIndicators.update(params.key, params.updateTI), {
-                    key: { symbol, date },
-                    updateTI: ti,
-                });
+                await db.handleThroughput(
+                    (params) => db.TechnicalIndicator.updateOne(params.key, params.updateTI, { upsert: true }),
+                    {
+                        key: { symbol, date },
+                        updateTI: ti,
+                    },
+                );
             }
         }
     } catch (err) {
