@@ -137,6 +137,8 @@ async function updateSymbolAsync(symbol, since) {
         const rsi2s = await alphavantage.queryRSI(symbol, 2, since);
         const rsi14s = await alphavantage.queryRSI(symbol, 14, since);
         const bbands = await alphavantage.queryBBands(symbol, 20, since);
+        const atr14s = await alphavantage.queryATR(symbol, 14, since);
+        const natr14s = await alphavantage.queryNATR(symbol, 14, since);
 
         for (let i = 0; i < dailyAdjusteds.length; i++) {
             const filter = { symbol: symbol, date: dailyAdjusteds[i].date };
@@ -164,7 +166,9 @@ async function updateSymbolAsync(symbol, since) {
                     macds[i].date !== dailyAdjusteds[i].date ||
                     rsi2s[i].date !== dailyAdjusteds[i].date ||
                     rsi14s[i].date !== dailyAdjusteds[i].date ||
-                    bbands[i].date !== dailyAdjusteds[i].date
+                    bbands[i].date !== dailyAdjusteds[i].date ||
+                    atr14s[i].date !== dailyAdjusteds[i].date ||
+                    natr14s[i].date !== dailyAdjusteds[i].date
                 ) {
                     throw new Error('diff. date ' + symbol);
                 }
@@ -217,6 +221,8 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
                 ti.bbandUpper = bbands[i].upper;
                 ti.bbandMiddle = bbands[i].middle;
             }
+            if (atr14s[i]) ti.atr14 = atr14s[i].atr;
+            if (natr14s[i]) ti.natr14 = natr14s[i].natr;
 
             allPromises.push(db.TechnicalIndicator.updateOne(filter, ti, { upsert: true }));
         }

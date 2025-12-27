@@ -51,6 +51,8 @@ const TA_EMA = 'Technical Analysis: EMA';
 const TA_MACD = 'Technical Analysis: MACD';
 const TA_BBANDS = 'Technical Analysis: BBANDS';
 const TA_RSI = 'Technical Analysis: RSI';
+const TA_ATR = 'Technical Analysis: ATR';
+const TA_NATR = 'Technical Analysis: NATR';
 
 function getApiKey() {
     if (API_KEY) return API_KEY;
@@ -272,6 +274,46 @@ export async function queryBBands(symbol, timePeriod, since) {
                 lower: Number(bbands['Real Lower Band']),
                 upper: Number(bbands['Real Upper Band']),
                 middle: Number(bbands['Real Middle Band']),
+            };
+        });
+}
+
+export async function queryATR(symbol, timePeriod, since) {
+    const qs = {
+        function: 'ATR',
+        symbol: symbol,
+        interval: INTERVAL,
+        time_period: timePeriod,
+        apikey: getApiKey(),
+    };
+    const atrs = await queryTechnicalIndicators(qs, TA_ATR);
+    return atrs
+        .filter((atr) => atr.date >= since)
+        .map((atr) => {
+            return {
+                symbol: symbol,
+                date: atr.date,
+                atr: Number(atr.ATR),
+            };
+        });
+}
+
+export async function queryNATR(symbol, timePeriod, since) {
+    const qs = {
+        function: 'NATR',
+        symbol: symbol,
+        interval: INTERVAL,
+        time_period: timePeriod,
+        apikey: getApiKey(),
+    };
+    const natrs = await queryTechnicalIndicators(qs, TA_NATR);
+    return natrs
+        .filter((natr) => natr.date >= since)
+        .map((natr) => {
+            return {
+                symbol: symbol,
+                date: natr.date,
+                natr: Number(natr.NATR),
             };
         });
 }

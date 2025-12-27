@@ -159,4 +159,50 @@ describe('alphavantage', () => {
             );
         });
     });
+
+    describe('#queryATR()', () => {
+        it('should work for AMZN since 2020-12-31', async () => {
+            const results = await alphavantage.queryATR('AMZN', 14, '2020-12-31');
+            expect(results.length).greaterThan(1);
+            const result = results.slice(-1)[0];
+            expect(result.symbol).to.equal('AMZN');
+            expect(result.date).to.equal('2020-12-31');
+            expect(result.atr).to.equal(3.2913);
+        });
+
+        it('should work for AMZN since <future date>', async () => {
+            const results = await alphavantage.queryATR('AMZN', 14, '9999-12-31');
+            expect(results.length).equal(0);
+        });
+
+        it('should fail for invalid time period', async () => {
+            await expectThrowsAsync(
+                () => alphavantage.queryATR('AMZN', 'abc', '2021-01-04'),
+                'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for ATR.',
+            );
+        });
+    });
+
+    describe('#queryNATR()', () => {
+        it('should work for AMZN since 2020-12-31', async () => {
+            const results = await alphavantage.queryNATR('AMZN', 14, '2020-12-31');
+            expect(results.length).greaterThan(1);
+            const result = results.slice(-1)[0];
+            expect(result.symbol).to.equal('AMZN');
+            expect(result.date).to.equal('2020-12-31');
+            expect(result.natr).to.equal(2.0211);
+        });
+
+        it('should work for AMZN since <future date>', async () => {
+            const results = await alphavantage.queryNATR('AMZN', 14, '9999-12-31');
+            expect(results.length).equal(0);
+        });
+
+        it('should fail for invalid time period', async () => {
+            await expectThrowsAsync(
+                () => alphavantage.queryNATR('AMZN', 'abc', '2021-01-04'),
+                'Invalid API call. Please retry or visit the documentation (https://www.alphavantage.co/documentation/) for NATR.',
+            );
+        });
+    });
 });
