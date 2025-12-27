@@ -162,6 +162,8 @@ export const DailyAdjusted = mongoose.model('DailyAdjusted', dailyAdjusted);
  * @property {number} bbandLower lower bollinger band
  * @property {number} bbandUpper upper bollinger band
  * @property {number} bbandMiddle middle bollinger band
+ * @property {number} atr14 average true range over 14 days
+ * @property {number} natr14 normalized average true range over 14 days
  */
 
 const technicalIndicator = new mongoose.Schema(
@@ -269,6 +271,14 @@ const technicalIndicator = new mongoose.Schema(
         },
         bbandMiddle: {
             type: Number,
+        },
+        atr14: {
+            type: Number,
+            validate: (atr) => atr >= 0,
+        },
+        natr14: {
+            type: Number,
+            validate: (natr) => natr >= 0,
         },
     },
     {
