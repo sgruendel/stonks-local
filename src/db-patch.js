@@ -32,6 +32,8 @@ symbols.forEach(async (symbol) => {
         const sma200s = await alphavantage.querySMA(symbol, 200, since);
         const ema20s = await alphavantage.queryEMA(symbol, 20, since);
         const ema100s = await alphavantage.queryEMA(symbol, 100, since);
+        const atr14s = await alphavantage.queryATR(symbol, 14, since);
+        const natr14s = await alphavantage.queryNATR(symbol, 14, since);
 
         logger.info('patching ' + symbol + ': ' + sma20s.length);
         for (let i = 0; i < sma20s.length; i++) {
@@ -52,6 +54,8 @@ symbols.forEach(async (symbol) => {
             if (sma200s[i]) ti.sma200 = sma200s[i].sma;
             if (ema20s[i]) ti.ema20 = ema20s[i].ema;
             if (ema100s[i]) ti.ema100 = ema100s[i].ema;
+            if (atr14s[i]) ti.atr14 = atr14s[i].atr;
+            if (natr14s[i]) ti.natr14 = natr14s[i].natr;
 
             if (Object.getOwnPropertyNames(ti).length >= 1) {
                 const date = sma20s[i].date;
