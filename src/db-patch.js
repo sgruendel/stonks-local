@@ -1,4 +1,5 @@
 import fs from 'fs';
+import pMap from 'p-map';
 import winston from 'winston';
 
 const logger = winston.createLogger({
@@ -14,16 +15,14 @@ const logger = winston.createLogger({
 import * as alphavantage from './alphavantage.js';
 import * as db from './db.js';
 
-// @ts-ignore
-const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json'));
+/** @type {string[]} */
+const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json').toString());
 
-const args = process.argv.slice(2);
-const symbols = args[0] === '*' ? ALL_SYMBOLS : args[0].split(',');
-const since = args[1] || '2018-01-01';
+async function patchSymbol(symbolSince) {
+    return patchSymbolAsync(symbolSince.symbol, symbolSince.since);
+}
 
-logger.info('patching data for ' + symbols + ' since ' + since + ' ...');
-
-symbols.forEach(async (symbol) => {
+async function patchSymbolAsync(symbol, since) {
     logger.info(symbol + ' ...');
 
     try {
@@ -35,16 +34,20 @@ symbols.forEach(async (symbol) => {
         const atr14s = await alphavantage.queryATR(symbol, 14, since);
         const natr14s = await alphavantage.queryNATR(symbol, 14, since);
 
-        logger.info('patching ' + symbol + ': ' + sma20s.length);
-        for (let i = 0; i < sma20s.length; i++) {
+        logger.info('patching ' + symbol + ': ' + atr14s.length);
+        // use shortest length of 14 days for iteration
+        for (let i = 0; i < atr14s.length; i++) {
             let ti = {};
 
+            // use longest length of 200 days for date checking
             if (i < sma200s.length) {
                 if (
                     sma20s[i].date !== sma100s[i].date ||
                     sma200s[i].date !== sma20s[i].date ||
                     ema20s[i].date !== sma20s[i].date ||
-                    ema100s[i].date !== sma20s[i].date
+                    ema100s[i].date !== sma20s[i].date ||
+                    atr14s[i].date !== sma20s[i].date ||
+                    natr14s[i].date !== sma20s[i].date
                 ) {
                     throw new Error('diff. date ' + symbol);
                 }
@@ -71,4 +74,19 @@ symbols.forEach(async (symbol) => {
     } catch (err) {
         logger.error(symbol, err);
     }
+}
+
+const args = process.argv.slice(2);
+const symbols = args[0] === '*' ? ALL_SYMBOLS : args[0].split(',');
+const since = args[1] || '2018-01-01';
+
+logger.info('patching data for ' + symbols + ' since ' + since + ' ...');
+
+pMap(
+    symbols.map((symbol) => ({ symbol, since })),
+    patchSymbol,
+    { concurrency: 1, stopOnError: false },
+).then(() => {
+    logger.info('done, waiting to finish ...');
+    db.disconnect();
 });
