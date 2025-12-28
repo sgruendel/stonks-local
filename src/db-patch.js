@@ -46,8 +46,8 @@ async function patchSymbolAsync(symbol, since) {
                     sma200s[i].date !== sma20s[i].date ||
                     ema20s[i].date !== sma20s[i].date ||
                     ema100s[i].date !== sma20s[i].date ||
-                    atr14s[i].date !== sma20s[i].date ||
-                    natr14s[i].date !== sma20s[i].date
+                    (atr14s[i] && atr14s[i].date !== sma20s[i].date) ||
+                    (natr14s[i] && natr14s[i].date !== sma20s[i].date)
                 ) {
                     throw new Error('diff. date ' + symbol);
                 }
