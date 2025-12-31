@@ -129,10 +129,7 @@ async function getDailyAdjustedFor(symbol, date) {
 async function getTechnicalIndicatorsFor(symbol, date) {
     /** @type {db.TechnicalIndicator[]} */
     // @ts-ignore
-    const tis = await db.TechnicalIndicator.find(filterOnOrBefore(symbol, date))
-        .limit(2)
-        .sort({ date: 'desc' })
-        .exec();
+    const tis = await db.TechnicalIndicator.find(filterOnOrBefore(symbol, date)).limit(2).sort({ date: 'desc' }).exec();
     return {
         tiBefore: tis.length >= 2 ? tis[1] : undefined,
         tiCurrent: tis.length >= 1 ? tis[0] : undefined,
@@ -221,7 +218,7 @@ info: transaction fees / taxes (already included in cash): 15.225/64.634,97
         return true;
     } else {
         logger.info(
-            'can\'t buy ' +
+            "can't buy " +
                 symbol +
                 ' on ' +
                 date.format(DATE_FORMAT) +
@@ -407,8 +404,8 @@ function sellItBB(tiBefore, tiCurrent, dailyAdjusted) {
  * @returns {boolean} true if buy signal
  */
 function buyItRSI(tiBefore, tiCurrent) {
-    if (tiBefore.rsi && tiCurrent.rsi) {
-        if (tiBefore.rsi < tiCurrent.rsi && tiBefore.rsi < 33.0) {
+    if (tiBefore.rsi14 && tiCurrent.rsi14) {
+        if (tiBefore.rsi14 < tiCurrent.rsi14 && tiBefore.rsi14 < 30.0) {
             // TODO only if above SMA50 or EMA100
             // TODO only if not a red day (close > open)
             // TODO only if lower (upper?) BBBand is rising
@@ -425,8 +422,8 @@ function buyItRSI(tiBefore, tiCurrent) {
  * @returns {boolean} true if sell signal
  */
 function sellItRSI(tiBefore, tiCurrent) {
-    if (tiBefore.rsi && tiCurrent.rsi) {
-        if (tiBefore.rsi > tiCurrent.rsi && tiBefore.rsi > 70.0) {
+    if (tiBefore.rsi14 && tiCurrent.rsi14) {
+        if (tiBefore.rsi14 > tiCurrent.rsi14 && tiBefore.rsi14 > 70.0) {
             return true;
         }
     }
@@ -501,8 +498,8 @@ function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
  */
 function sellItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
     // TODO: 2-period RSI
-    if (tiBefore.rsi && tiCurrent.rsi) {
-        if (tiBefore.rsi > tiCurrent.rsi && tiBefore.rsi > 65.0) {
+    if (tiBefore.rsi14 && tiCurrent.rsi14) {
+        if (tiBefore.rsi14 > tiCurrent.rsi14 && tiBefore.rsi14 > 65.0) {
             return true;
         }
     }
@@ -527,10 +524,10 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
 
     // only trade if symbol is being traded on 'date', and if we have technical indicators for 'date' and day before
     if (dailyAdjusted && date.isSame(dailyAdjusted.date) && tiBefore && tiCurrent) {
-        if (tiBefore.rsi && tiCurrent.rsi) {
-            if (tiBefore.rsi < 30.0 && tiCurrent.rsi >= 30.0) {
+        if (tiBefore.rsi14 && tiCurrent.rsi14) {
+            if (tiBefore.rsi14 < 30.0 && tiCurrent.rsi14 >= 30.0) {
                 logger.info('RSI: ' + symbol + ' bullish, leaving oversold on ' + date.format(DATE_FORMAT));
-            } else if (tiBefore.rsi > 70.0 && tiCurrent.rsi <= 70.0 && depot[symbol].amount > 0) {
+            } else if (tiBefore.rsi14 > 70.0 && tiCurrent.rsi14 <= 70.0 && depot[symbol].amount > 0) {
                 logger.info('RSI: ' + symbol + ' bearish, leaving overbought on ' + date.format(DATE_FORMAT));
             }
         }
@@ -785,7 +782,10 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
     logger.info('depot value is ' + DE_NUMBER_FORMAT.format(depotValue));
     logger.info('sum of cash+depot is ' + DE_NUMBER_FORMAT.format(cash + depotValue));
     logger.info(
-        'transaction fees / taxes (already included in cash): ' + DE_NUMBER_FORMAT.format(transactionFees) + '/' + DE_NUMBER_FORMAT.format(taxes),
+        'transaction fees / taxes (already included in cash): ' +
+            DE_NUMBER_FORMAT.format(transactionFees) +
+            '/' +
+            DE_NUMBER_FORMAT.format(taxes),
     );
 
     logger.info('done, waiting to finish ...');
