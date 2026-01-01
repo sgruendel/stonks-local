@@ -630,7 +630,7 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
                 if (result) {
                     depot[symbol].daysSinceBuy = 0;
                     depot[symbol].redDaysSinceBuy = 0;
-                    //const newStopLoss = swingLow(symbol); // TODO stop loss should be significantly lower than buy price
+                    //const newStopLoss = swingLow(symbol);
                     const newStopLoss = dailyAdjusted.adjustedClose - 3 * tiCurrent.atr14;
                     logger.info(
                         symbol + ': current stop loss is ' + depot[symbol].stopLoss + ', new is ' + newStopLoss,
