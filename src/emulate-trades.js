@@ -50,9 +50,10 @@ const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json').toString());
 const DATE_FORMAT = 'YYYY-MM-DD';
 const DE_NUMBER_FORMAT = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 
-let cash = 1000000;
-const MIN_BUY = 1000;
-const MAX_BUY = 5000;
+let cash = 100000;
+const MIN_BUY = 500;
+const MAX_BUY = 1000;
+const MAX_VALUE = 10000;
 const TRANSACTION_FEE = 0.0;
 const TAX_RATE = 0.25;
 
@@ -145,7 +146,7 @@ async function getVIXsFor(date) {
     /** @type {db.VIX[]} */
     // @ts-ignore
     const vixs = await db.VIX.find({ date: { $lte: date.format(DATE_FORMAT) } })
-        .limit(2)
+        .limit(3)
         .sort({ date: 'desc' })
         .exec();
     return vixs;
@@ -173,11 +174,20 @@ async function calcDepot(date) {
  */
 async function buy(date, symbol, dailyAdjusted) {
     const sharePrice = dailyAdjusted.adjustedClose;
-    // performs better with rebuying
-    if (depot[symbol].amount > 0 && sharePrice >= depot[symbol].avgSharePrice) {
-        logger.info('not re-buying ' + symbol + ' at higher price');
-        return false;
+
+    if (depot[symbol].amount > 0) {
+        // performs better with rebuying, but only when down cost averaging
+        if (sharePrice >= depot[symbol].avgSharePrice) {
+            logger.info('not re-buying ' + symbol + ' at higher price');
+            return false;
+        }
+
+        if (depot[symbol].amount * depot[symbol].avgSharePrice + MIN_BUY > MAX_VALUE) {
+            logger.info('not re-buying ' + symbol + ', already maxed out');
+            return false;
+        }
     }
+
     if (cash >= MIN_BUY && cash >= sharePrice + TRANSACTION_FEE) {
         const amount = Math.floor(Math.min(MAX_BUY, cash - TRANSACTION_FEE) / sharePrice);
         cash -= amount * sharePrice + TRANSACTION_FEE;
@@ -191,13 +201,6 @@ async function buy(date, symbol, dailyAdjusted) {
             depot[symbol].amount = amount;
             depot[symbol].avgSharePrice = sharePrice;
         }
-        /*
-        pre tax back:
-        info: cash now is 1.008.156,3
-info: depot value is 0
-info: sum of cash+depot is 1.008.156,3
-info: transaction fees / taxes (already included in cash): 15.225/64.634,97
-        */
         transactionFees += TRANSACTION_FEE;
         logger.info(
             'bought ' +
@@ -337,7 +340,7 @@ function buyItMacdHist(tiBefore, tiCurrent) {
             // TODO only buy if MACD < 0
             // TODO don't buy if RSI <50
             // TODO only if above SMA50 or EMA100
-            return true; //tiCurrent.macd < 2.0 && tiCurrent.rsi < 50.0*/;
+            return tiCurrent.macd < 0.0 && tiCurrent.rsi14 < 50.0;
         }
     }
 }
@@ -354,7 +357,41 @@ function sellItMacdHist(tiBefore, tiCurrent) {
         if (tiBefore.macdHist > 0 && tiCurrent.macdHist < 0) {
             // TODO only sell if MACD > 0
             // TODO don't sell if RSI >50
-            return true; //tiCurrent.macd > -2.0 /*&& tiCurrent.rsi > 50.0*/;
+            return tiCurrent.macd > 0.0 && tiCurrent.rsi14 > 50.0;
+        }
+    }
+}
+
+/**
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @returns {boolean} true if buy signal
+ */
+function buyItMacdHistAnal(tiBefore, tiCurrent) {
+    if (tiBefore.macd && tiCurrent.macd) {
+        if (tiCurrent.macdHist < 0 && tiBefore.macdHist < tiCurrent.macdHist) {
+            // TODO only buy if MACD < 0
+            // TODO don't buy if RSI <50
+            // TODO only if above SMA50 or EMA100
+            return tiCurrent.macd < 0.0 && tiCurrent.rsi14 < 50.0;
+        }
+    }
+}
+
+/**
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @returns {boolean} true if sell signal
+ */
+function sellItMacdHistAnal(tiBefore, tiCurrent) {
+    // TODO sell if below SMA50?
+    if (tiBefore.macd && tiCurrent.macd) {
+        if (tiCurrent.macdHist > 0 && tiBefore.macdHist > tiCurrent.macdHist) {
+            // TODO only sell if MACD > 0
+            // TODO don't sell if RSI >50
+            return tiCurrent.macd > 0.0 && tiCurrent.rsi14 > 70.0;
         }
     }
 }
@@ -455,14 +492,14 @@ function sellItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
     if (tiBefore.ema13 && tiCurrent.ema13) {
         // take profit if dailyAdjusted.low < tiBefore.ema13
         if (dailyAdjusted.low < tiBefore.ema13) {
-            return tiBefore.ema13;
+            return true;
         }
 
         if (tiBefore.ema13 > tiCurrent.ema13) {
             // if (tiCurrent.ema13 > tiCurrent.ema5 && tiBefore.ema13 > tiCurrent.ema13) {
             if (dailyAdjusted.adjustedClose < tiCurrent.ema13) {
                 // throw Error('should never happen: ' + dailyAdjusted.low + '/' + dailyAdjusted.adjustedClose + '/' + tiCurrent.ema13);
-                return dailyAdjusted.adjustedClose;
+                return true;
             }
         }
     }
@@ -484,7 +521,11 @@ function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
         // TODO only if lower (upper?) BBBand is rising
         // TODO dailyAdjusted.adjustedClose > tiCurrent.bbandLower;
         // return true;//tiBefore.bbandUpper < tiCurrent.bbandUpper;
-        return vixs[0].close >= vixs[0].sma10 * 1.05 && vixs[1].close >= vixs[1].sma10 * 1.05;
+        return (
+            vixs[0].close >= vixs[0].sma10 * 1.05 &&
+            vixs[1].close >= vixs[1].sma10 * 1.05 &&
+            vixs[2].close >= vixs[2].sma10 * 1.05
+        );
     }
 }
 
@@ -497,9 +538,8 @@ function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
  * @returns {boolean} true if sell signal
  */
 function sellItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
-    // TODO: 2-period RSI
-    if (tiBefore.rsi14 && tiCurrent.rsi14) {
-        if (tiBefore.rsi14 > tiCurrent.rsi14 && tiBefore.rsi14 > 65.0) {
+    if (tiBefore.rsi2 && tiCurrent.rsi2) {
+        if (tiBefore.rsi2 > tiCurrent.rsi2 && tiBefore.rsi2 > 65.0) {
             return true;
         }
     }
@@ -552,30 +592,28 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
 
         let sellPrice = 0.0;
 
-        /*
         if (depot[symbol].amount) {
             if (depot[symbol].stopLoss && dailyAdjusted.low < depot[symbol].stopLoss) {
                 sellPrice = depot[symbol].stopLoss;
                 logger.info('stop loss: ' + symbol + ' selling on ' + date.format(DATE_FORMAT));
+                /*
             } else if (depot[symbol].profitTarget && dailyAdjusted.adjustedClose > depot[symbol].profitTarget) {
                 sellPrice = depot[symbol].profitTarget;
                 logger.info('profit target: ' + symbol + ' selling on ' + date.format(DATE_FORMAT));
+            */
             }
         }
-        */
 
-        /*
         if (depot[symbol].amount) {
             depot[symbol].daysSinceBuy++;
             if (dailyAdjusted.adjustedClose < dailyAdjusted.open) {
                 depot[symbol].redDaysSinceBuy++;
             }
             if (depot[symbol].daysSinceBuy === 3 && depot[symbol].redDaysSinceBuy === 3) {
-                sellIt = true;
+                sellPrice = dailyAdjusted.close;
                 logger.info('three red days in a row: ' + symbol + ' selling on ' + date.format(DATE_FORMAT));
             }
         }
-        */
 
         let result = false;
         if (sellPrice > 0.0) {
@@ -592,7 +630,8 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
                 if (result) {
                     depot[symbol].daysSinceBuy = 0;
                     depot[symbol].redDaysSinceBuy = 0;
-                    const newStopLoss = swingLow(symbol); // TODO stop loss should be significantly lower than buy price
+                    //const newStopLoss = swingLow(symbol); // TODO stop loss should be significantly lower than buy price
+                    const newStopLoss = dailyAdjusted.adjustedClose - 3 * tiCurrent.atr14;
                     logger.info(
                         symbol + ': current stop loss is ' + depot[symbol].stopLoss + ', new is ' + newStopLoss,
                     );
@@ -642,11 +681,6 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
         lows[symbol].push(dailyAdjusted.adjustedClose);
         if (lows[symbol].length > 20) {
             lows[symbol].shift();
-            /*
-            if (symbol === 'TTD') {
-                logger.info(symbol + ': lows ', lows[symbol]);
-            }
-            */
         }
         /*
         if (dailyAdjusted.splitCoefficient !== 1) {
@@ -659,7 +693,7 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
 }
 
 /**
- * emulate trades for symbols from fromDate to toDate using specific strategy
+ * Emulate trades for stock symbols from fromDate to toDate using specific strategy
  *
  * @param {string[]} symbols
  * @param {dayjs.Dayjs} fromDate
@@ -679,31 +713,34 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
                 try {
                     switch (strategy) {
                         case 'MACD':
-                            return await trade(symbol, date, vixs, buyItMacd, sellItMacd, 'MACD');
+                            return await trade(symbol, date, vixs, buyItMacd, sellItMacd, strategy);
 
                         case 'MACD-Hist':
                             // since 2019 info: cash now is 455.807,19
                             // since 2019 info: depot value is 1.732.066,21
                             // since 2019 info: sum of cash+depot is 2.187.873,4
                             // since 2019 info: transaction fees / taxes (already included in cash): 3.675/-33.051,02
-                            return await trade(symbol, date, vixs, buyItMacdHist, sellItMacdHist, 'MACD-Hist');
+                            return await trade(symbol, date, vixs, buyItMacdHist, sellItMacdHist, strategy);
+
+                        case 'MACD-HistAnal':
+                            return await trade(symbol, date, vixs, buyItMacdHistAnal, sellItMacdHistAnal, strategy);
 
                         case 'BB':
-                            return await trade(symbol, date, vixs, buyItBB, sellItBB, 'BB');
+                            return await trade(symbol, date, vixs, buyItBB, sellItBB, strategy);
 
                         case 'RSI':
                             // since 2019 info: cash now is 334.793,24
                             // since 2019 info: depot value is 1.703.523,4
                             // since 2019 info: sum of cash+depot is 2.038.316,64
                             // since 2019 info: transaction fees / taxes (already included in cash): 9.485/-29.856,94
-                            return await trade(symbol, date, vixs, buyItRSI, sellItRSI, 'RSI');
+                            return await trade(symbol, date, vixs, buyItRSI, sellItRSI, strategy);
 
                         case 'EMA2':
                             // since 2019 info: cash now is 1.477.632,19
                             // since 2019 info: depot value is 164.237,88
                             // since 2019 info: sum of cash+depot is 1.641.870,07
                             // since 2019 info: transaction fees / taxes (already included in cash): 35.644/225.718,47
-                            return await trade(symbol, date, vixs, buyItEMACloud2, sellItEMACloud2, 'EMA2');
+                            return await trade(symbol, date, vixs, buyItEMACloud2, sellItEMACloud2, strategy);
 
                         case 'VIXss':
                             // since 2019 info: cash now is 386.861,74
@@ -716,7 +753,7 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
                                 vixs,
                                 buyItVIXStrechStrategy,
                                 sellItVIXStrechStrategy,
-                                'VIXss',
+                                strategy,
                             );
 
                         default:
@@ -793,9 +830,17 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
 }
 
 const args = process.argv.slice(2);
+
+// stock symbols to trade, '*' for all from symbols.json
 const symbols = args[0] === '*' ? ALL_SYMBOLS : args[0].split(',');
+
+// date to start trading, default is 7 days ago
 const from = args[1] || dayjs().subtract(7, 'days').format(DATE_FORMAT);
+
+// date to stop trading, default is today
 const to = args[2] || dayjs().format(DATE_FORMAT);
+
+// trading strategy to use, default is MACD
 const strategy = args[3] || 'MACD';
 
 logger.info(`emulating trades for ${symbols} from ${from} to ${to} using strategy ${strategy} ...`);
