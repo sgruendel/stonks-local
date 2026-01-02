@@ -627,10 +627,12 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
             closedBelowSma50[symbol] = false;
         }
 
-        let sellPrice = 0.0;
+        let forceSell = false;
+        let sellPrice = undefined;
 
         if (depot[symbol].amount) {
             if (depot[symbol].stopLoss && dailyAdjusted.low < depot[symbol].stopLoss) {
+                forceSell = true;
                 sellPrice = depot[symbol].stopLoss;
                 logger.info('stop loss: ' + symbol + ' selling on ' + date.format(DATE_FORMAT));
                 /*
@@ -647,13 +649,15 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
                 depot[symbol].redDaysSinceBuy++;
             }
             if (depot[symbol].daysSinceBuy === 3 && depot[symbol].redDaysSinceBuy === 3) {
-                sellPrice = dailyAdjusted.close;
+                forceSell = true;
                 logger.info('three red days in a row: ' + symbol + ' selling on ' + date.format(DATE_FORMAT));
             }
         }
 
         let result = false;
-        if (sellPrice > 0.0) {
+        if (forceSell && !sellPrice) {
+            result = await sell(date, symbol, dailyAdjusted, true);
+        } else if (forceSell && sellPrice > 0.0) {
             result = await sell(date, symbol, dailyAdjusted, true, sellPrice);
         } else {
             const buyIt = buyItFn(tiBefore, tiCurrent, dailyAdjusted, vixs);
