@@ -648,10 +648,12 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
             if (dailyAdjusted.adjustedClose < dailyAdjusted.open) {
                 depot[symbol].redDaysSinceBuy++;
             }
+            /*
             if (depot[symbol].daysSinceBuy === 3 && depot[symbol].redDaysSinceBuy === 3) {
                 forceSell = true;
                 logger.info('three red days in a row: ' + symbol + ' selling on ' + date.format(DATE_FORMAT));
             }
+            */
         }
 
         let result = false;
