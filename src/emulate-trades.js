@@ -886,8 +886,8 @@ const from = args[1] || dayjs().subtract(7, 'days').format(DATE_FORMAT);
 // date to stop trading, default is today
 const to = args[2] || dayjs().format(DATE_FORMAT);
 
-// trading strategy to use, default is MACD Zero Line Crossover
-const strategy = args[3] || 'MACD-ZLC';
+// trading strategy to use, default is MACD Signal Line Crossover
+const strategy = args[3] || 'MACD-SLC';
 
 logger.info(`emulating trades for ${symbols} from ${from} to ${to} using strategy ${strategy} ...`);
 emulateTrades(symbols, dayjs(from, DATE_FORMAT), dayjs(to, DATE_FORMAT), strategy);
