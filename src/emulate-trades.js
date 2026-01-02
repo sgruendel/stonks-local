@@ -298,12 +298,46 @@ function splitAdjust(depot, splitCoefficient) {
 }
 
 /**
+ * MACD based strategy using Signal Line Crossover, buy when MACD crosses above signal line
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if buy signal
  */
-function buyItMacd(tiBefore, tiCurrent) {
+function buyItMacdSLC(tiBefore, tiCurrent) {
+    if (tiBefore.macd && tiCurrent.macd) {
+        if (tiCurrent.macd > tiCurrent.macdSignal && tiBefore.macd < tiBefore.macdSignal) {
+            // TODO don't buy if RSI <50
+            // TODO only if above SMA50/SMA200?
+            return true;
+        }
+    }
+}
+
+/**
+ * MACD based strategy using Signal Line Crossover, sell when MACD crosses below signal line
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @returns {boolean} true if sell signal
+ */
+function sellItMacdSLC(tiBefore, tiCurrent) {
+    if (tiBefore.macd && tiCurrent.macd) {
+        if (tiCurrent.macd < tiCurrent.macdSignal && tiBefore.macd > tiBefore.macdSignal) {
+            // TODO don't sell if RSI >50
+            return true;
+        }
+    }
+}
+
+/**
+ * MACD based strategy using Zero Line Crossover, buy when MACD crosses above 0
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @returns {boolean} true if buy signal
+ */
+function buyItMacdZLC(tiBefore, tiCurrent) {
     if (tiBefore.macd && tiCurrent.macd) {
         if (tiBefore.macd < 0 && tiCurrent.macd > 0) {
             // TODO don't buy if RSI <50
@@ -314,12 +348,13 @@ function buyItMacd(tiBefore, tiCurrent) {
 }
 
 /**
+ * MACD based strategy using Zero Line Crossover, sell when MACD crosses below 0
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
  * @returns {boolean} true if sell signal
  */
-function sellItMacd(tiBefore, tiCurrent) {
+function sellItMacdZLC(tiBefore, tiCurrent) {
     if (tiBefore.macd && tiCurrent.macd) {
         if (tiBefore.macd > 0 && tiCurrent.macd < 0) {
             // TODO don't sell if RSI >50
@@ -329,6 +364,7 @@ function sellItMacd(tiBefore, tiCurrent) {
 }
 
 /**
+ * MACD based strategy using MACD Histogram Reversal, buy when MACD Histogram crosses above 0
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -346,6 +382,7 @@ function buyItMacdHist(tiBefore, tiCurrent) {
 }
 
 /**
+ * MACD based strategy using MACD Histogram Reversal, sell when MACD Histogram crosses below 0
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -712,8 +749,11 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
             const trades = symbols.map(async (symbol) => {
                 try {
                     switch (strategy) {
-                        case 'MACD':
-                            return await trade(symbol, date, vixs, buyItMacd, sellItMacd, strategy);
+                        case 'MACD-SLC':
+                            return await trade(symbol, date, vixs, buyItMacdSLC, sellItMacdSLC, strategy);
+
+                        case 'MACD-ZLC':
+                            return await trade(symbol, date, vixs, buyItMacdZLC, sellItMacdZLC, strategy);
 
                         case 'MACD-Hist':
                             // since 2019 info: cash now is 455.807,19
@@ -825,7 +865,7 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
             DE_NUMBER_FORMAT.format(taxes),
     );
 
-    logger.info('done, waiting to finish ...');
+    logger.info('strategy ' + strategy + ' done, waiting to finish ...');
     db.disconnect();
 }
 
@@ -840,8 +880,8 @@ const from = args[1] || dayjs().subtract(7, 'days').format(DATE_FORMAT);
 // date to stop trading, default is today
 const to = args[2] || dayjs().format(DATE_FORMAT);
 
-// trading strategy to use, default is MACD
-const strategy = args[3] || 'MACD';
+// trading strategy to use, default is MACD Zero Line Crossover
+const strategy = args[3] || 'MACD-ZLC';
 
 logger.info(`emulating trades for ${symbols} from ${from} to ${to} using strategy ${strategy} ...`);
 emulateTrades(symbols, dayjs(from, DATE_FORMAT), dayjs(to, DATE_FORMAT), strategy);
