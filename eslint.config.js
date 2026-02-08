@@ -1,13 +1,12 @@
-import globals from 'globals';
 import js from '@eslint/js';
+import globals from 'globals';
+import { defineConfig } from 'eslint/config';
 
-/** @type {import('eslint').Linter.Config[]} */
-export default [
+export default defineConfig([
     {
-        languageOptions: {
-            ecmaVersion: 2023,
-            globals: globals.node,
-        },
+        files: ['**/*.{js,mjs,cjs}'],
+        plugins: { js },
+        extends: ['js/recommended'],
+        languageOptions: { globals: globals.node },
     },
-    js.configs.recommended,
-];
+]);
