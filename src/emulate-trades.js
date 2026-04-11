@@ -282,22 +282,6 @@ async function sell(date, symbol, dailyAdjusted, force = false, sellPrice = unde
 }
 
 /**
- *
- * @param {DepotEntry} depot
- * @param {number} splitCoefficient
- */
-function splitAdjust(depot, splitCoefficient) {
-    if (depot) {
-        logger.info('before split adjust', depot);
-        depot.amount *= splitCoefficient;
-        depot.avgSharePrice /= splitCoefficient;
-        depot.profitTarget /= splitCoefficient;
-        depot.stopLoss /= splitCoefficient;
-        logger.info('after split adjust', depot);
-    }
-}
-
-/**
  * MACD based strategy using Signal Line Crossover, buy when MACD crosses above signal line
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
@@ -714,22 +698,14 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
         }
 
         if (dailyAdjusted.splitCoefficient !== 1) {
-            logger.info(symbol + ': split ' + dailyAdjusted.splitCoefficient);
-            logger.info(symbol + ': lows ', lows[symbol]);
-            splitAdjust(depot[symbol], dailyAdjusted.splitCoefficient);
+            logger.info(symbol + ': split 1:' + dailyAdjusted.splitCoefficient);
+            logger.info('please run db-update for ' + symbol + ' to update past data for split adjustment');
         }
 
-        // TODO low doesn't consider split, need an adjustedLow: lows[symbol].push(dailyAdjusted.low);
-        // so for now, use adjustedClose as low
-        lows[symbol].push(dailyAdjusted.adjustedClose);
+        lows[symbol].push(dailyAdjusted.low);
         if (lows[symbol].length > 20) {
             lows[symbol].shift();
         }
-        /*
-        if (dailyAdjusted.splitCoefficient !== 1) {
-            logger.info(symbol + ': lows ', lows[symbol]);
-        }
-        */
 
         return result;
     }
@@ -835,8 +811,8 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
         return depot[symbol1].profit < depot[symbol2].profit
             ? -1
             : depot[symbol1].profit > depot[symbol2].profit
-            ? 1
-            : 0;
+              ? 1
+              : 0;
     });
 
     logger.info('depot (past):');
