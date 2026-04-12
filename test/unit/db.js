@@ -117,4 +117,18 @@ describe('db', () => {
             expect(schemaObj.rsi14.validate(100.1)).to.be.false;
         });
     });
+
+    describe('#TechnicalIndicator.sma250.validate()', () => {
+        it('should work for 123.45', () => {
+            const schemaObj = db.TechnicalIndicator.schema.obj;
+            expect(schemaObj.sma250.validate(123.45)).to.be.true;
+        });
+    });
+
+    describe('#TechnicalIndicator.ema250.validate()', () => {
+        it('should work for 123.45', () => {
+            const schemaObj = db.TechnicalIndicator.schema.obj;
+            expect(schemaObj.ema250.validate(123.45)).to.be.true;
+        });
+    });
 });

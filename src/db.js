@@ -142,6 +142,7 @@ export const DailyAdjusted = mongoose.model('DailyAdjusted', dailyAdjusted);
  * @property {number} sma50 simple moving average over 50 days
  * @property {number} sma100 simple moving average over 100 days
  * @property {number} sma200 simple moving average over 200 days
+ * @property {number} sma250 simple moving average over 250 days
  * @property {number} ema5 exponential moving average over 5 days
  * @property {number} ema8 exponential moving average over 8 days
  * @property {number} ema9 exponential moving average over 9 days
@@ -154,6 +155,7 @@ export const DailyAdjusted = mongoose.model('DailyAdjusted', dailyAdjusted);
  * @property {number} ema50 exponential moving average over 50 days
  * @property {number} ema100 exponential moving average over 100 days
  * @property {number} ema200 exponential moving average over 200 days
+ * @property {number} ema250 exponential moving average over 250 days
  * @property {number} macd moving average convergence divergence
  * @property {number} macdHist moving average convergence divergence histogram
  * @property {number} macdSignal moving average convergence divergence signal
@@ -195,6 +197,10 @@ const technicalIndicator = new mongoose.Schema(
             validate: (sma) => sma >= 0,
         },
         sma200: {
+            type: Number,
+            validate: (sma) => sma >= 0,
+        },
+        sma250: {
             type: Number,
             validate: (sma) => sma >= 0,
         },
@@ -243,6 +249,10 @@ const technicalIndicator = new mongoose.Schema(
             validate: (ema) => ema >= 0,
         },
         ema200: {
+            type: Number,
+            validate: (ema) => ema >= 0,
+        },
+        ema250: {
             type: Number,
             validate: (ema) => ema >= 0,
         },

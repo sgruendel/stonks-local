@@ -29,8 +29,11 @@ async function patchSymbolAsync(symbol, since) {
         const sma20s = await alphavantage.querySMA(symbol, 20, since);
         const sma100s = await alphavantage.querySMA(symbol, 100, since);
         const sma200s = await alphavantage.querySMA(symbol, 200, since);
+        const sma250s = await alphavantage.querySMA(symbol, 250, since);
         const ema20s = await alphavantage.queryEMA(symbol, 20, since);
         const ema100s = await alphavantage.queryEMA(symbol, 100, since);
+        const ema200s = await alphavantage.queryEMA(symbol, 200, since);
+        const ema250s = await alphavantage.queryEMA(symbol, 250, since);
         const atr14s = await alphavantage.queryATR(symbol, 14, since);
         const natr14s = await alphavantage.queryNATR(symbol, 14, since);
 
@@ -40,12 +43,15 @@ async function patchSymbolAsync(symbol, since) {
             let ti = {};
 
             // use longest length of 200 days for date checking
-            if (i < sma200s.length) {
+            if (i < sma250s.length) {
                 if (
                     sma20s[i].date !== sma100s[i].date ||
                     sma200s[i].date !== sma20s[i].date ||
+                    sma250s[i].date !== sma20s[i].date ||
                     ema20s[i].date !== sma20s[i].date ||
                     ema100s[i].date !== sma20s[i].date ||
+                    ema200s[i].date !== sma20s[i].date ||
+                    ema250s[i].date !== sma20s[i].date ||
                     atr14s[i].date !== sma20s[i].date ||
                     natr14s[i].date !== sma20s[i].date
                 ) {
@@ -55,8 +61,11 @@ async function patchSymbolAsync(symbol, since) {
             if (sma20s[i]) ti.sma20 = sma20s[i].sma;
             if (sma100s[i]) ti.sma100 = sma100s[i].sma;
             if (sma200s[i]) ti.sma200 = sma200s[i].sma;
+            if (sma250s[i]) ti.sma250 = sma250s[i].sma;
             if (ema20s[i]) ti.ema20 = ema20s[i].ema;
             if (ema100s[i]) ti.ema100 = ema100s[i].ema;
+            if (ema200s[i]) ti.ema200 = ema200s[i].ema;
+            if (ema250s[i]) ti.ema250 = ema250s[i].ema;
             if (atr14s[i]) ti.atr14 = atr14s[i].atr;
             if (natr14s[i]) ti.natr14 = natr14s[i].natr;
 

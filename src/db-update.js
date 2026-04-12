@@ -121,6 +121,7 @@ async function updateSymbolAsync(symbol, since) {
         const sma50s = await alphavantage.querySMA(symbol, 50, since);
         const sma100s = await alphavantage.querySMA(symbol, 100, since);
         const sma200s = await alphavantage.querySMA(symbol, 200, since);
+        const sma250s = await alphavantage.querySMA(symbol, 250, since);
         const ema5s = await alphavantage.queryEMA(symbol, 5, since);
         const ema8s = await alphavantage.queryEMA(symbol, 8, since);
         const ema9s = await alphavantage.queryEMA(symbol, 9, since);
@@ -133,6 +134,7 @@ async function updateSymbolAsync(symbol, since) {
         const ema50s = await alphavantage.queryEMA(symbol, 50, since);
         const ema100s = await alphavantage.queryEMA(symbol, 100, since);
         const ema200s = await alphavantage.queryEMA(symbol, 200, since);
+        const ema250s = await alphavantage.queryEMA(symbol, 250, since);
         const macds = await alphavantage.queryMACD(symbol, since);
         const rsi2s = await alphavantage.queryRSI(symbol, 2, since);
         const rsi14s = await alphavantage.queryRSI(symbol, 14, since);
@@ -144,13 +146,14 @@ async function updateSymbolAsync(symbol, since) {
             const filter = { symbol: symbol, date: dailyAdjusteds[i].date };
             let ti = filter;
 
-            if (i < sma200s.length) {
+            if (i < sma250s.length) {
                 if (
                     sma15s[i].date !== dailyAdjusteds[i].date ||
                     sma20s[i].date !== dailyAdjusteds[i].date ||
                     sma50s[i].date !== dailyAdjusteds[i].date ||
                     sma100s[i].date !== dailyAdjusteds[i].date ||
                     sma200s[i].date !== dailyAdjusteds[i].date ||
+                    sma250s[i].date !== dailyAdjusteds[i].date ||
                     ema5s[i].date !== dailyAdjusteds[i].date ||
                     ema8s[i].date !== dailyAdjusteds[i].date ||
                     ema9s[i].date !== dailyAdjusteds[i].date ||
@@ -163,6 +166,7 @@ async function updateSymbolAsync(symbol, since) {
                     ema50s[i].date !== dailyAdjusteds[i].date ||
                     ema100s[i].date !== dailyAdjusteds[i].date ||
                     ema200s[i].date !== dailyAdjusteds[i].date ||
+                    ema250s[i].date !== dailyAdjusteds[i].date ||
                     macds[i].date !== dailyAdjusteds[i].date ||
                     rsi2s[i].date !== dailyAdjusteds[i].date ||
                     rsi14s[i].date !== dailyAdjusteds[i].date ||
@@ -197,6 +201,7 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
             if (sma50s[i]) ti.sma50 = sma50s[i].sma;
             if (sma100s[i]) ti.sma100 = sma100s[i].sma;
             if (sma200s[i]) ti.sma200 = sma200s[i].sma;
+            if (sma250s[i]) ti.sma250 = sma250s[i].sma;
             if (ema5s[i]) ti.ema5 = ema5s[i].ema;
             if (ema8s[i]) ti.ema8 = ema8s[i].ema;
             if (ema9s[i]) ti.ema9 = ema9s[i].ema;
@@ -209,6 +214,7 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
             if (ema50s[i]) ti.ema50 = ema50s[i].ema;
             if (ema100s[i]) ti.ema100 = ema100s[i].ema;
             if (ema200s[i]) ti.ema200 = ema200s[i].ema;
+            if (ema250s[i]) ti.ema250 = ema250s[i].ema;
             if (macds[i]) {
                 ti.macd = macds[i].macd;
                 ti.macdHist = macds[i].hist;
