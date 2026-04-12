@@ -384,6 +384,7 @@ function sellItMacdHist(tiBefore, tiCurrent) {
 }
 
 /**
+ * MACD based strategy using MACD Histogram Reversal, buy when MACD Histogram is rising but still below 0
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -401,6 +402,7 @@ function buyItMacdHistAnal(tiBefore, tiCurrent) {
 }
 
 /**
+ * MACD based strategy using MACD Histogram Reversal, sell when MACD Histogram is falling but still above 0
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -418,6 +420,7 @@ function sellItMacdHistAnal(tiBefore, tiCurrent) {
 }
 
 /**
+ * Bollinger Band based strategy, buy when upper band is rising and lower band is falling
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -436,6 +439,7 @@ function buyItBB(tiBefore, tiCurrent, dailyAdjusted) {
 }
 
 /**
+ * Bollinger Band based strategy, sell when upper band is falling and lower band is rising
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -456,6 +460,7 @@ function sellItBB(tiBefore, tiCurrent, dailyAdjusted) {
 }
 
 /**
+ * RSI based strategy, buy when RSI is rising but still below 30
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -474,6 +479,7 @@ function buyItRSI(tiBefore, tiCurrent) {
 }
 
 /**
+ * RSI based strategy, sell when RSI is falling but still above 70
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -488,6 +494,7 @@ function sellItRSI(tiBefore, tiCurrent) {
 }
 
 /**
+ * EMA Cloud based strategy, buy when EMA5 is rising but still below EMA13
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -503,6 +510,7 @@ function buyItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
 }
 
 /**
+ * EMA Cloud based strategy, sell when EMA5 is falling but still above EMA13
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -528,6 +536,7 @@ function sellItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
 
 // see http://www.traderslaboratory.com/forums/topic/6931-combining-rsi-and-vix-into-a-winning-system/
 /**
+ * VIX Stretch based strategy, buy when VIX is rising and above 5% of its 10 day SMA, but only if stock is above EMA200
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -535,7 +544,7 @@ function sellItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
  * @param {db.VIX[]} vixs VIX data
  * @returns {boolean} true if sell signal
  */
-function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
+function buyItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
     if (dailyAdjusted.adjustedClose > tiCurrent.ema200) {
         // TODO only if above SMA50 or EMA100
         // TODO only if not a red day (close > open)
@@ -551,6 +560,7 @@ function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
 }
 
 /**
+ * VIX Stretch based strategy, sell when VIX is falling but still above 65
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
  * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
@@ -558,7 +568,7 @@ function buyItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
  * @param {db.VIX[]} vixs VIX data
  * @returns {boolean} true if sell signal
  */
-function sellItVIXStrechStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
+function sellItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
     if (tiBefore.rsi2 && tiCurrent.rsi2) {
         if (tiBefore.rsi2 > tiCurrent.rsi2 && tiBefore.rsi2 > 65.0) {
             return true;
@@ -773,8 +783,8 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
                                 symbol,
                                 date,
                                 vixs,
-                                buyItVIXStrechStrategy,
-                                sellItVIXStrechStrategy,
+                                buyItVIXStretchStrategy,
+                                sellItVIXStretchStrategy,
                                 strategy,
                             );
 
