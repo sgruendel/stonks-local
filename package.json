@@ -34,11 +34,11 @@
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/node": "^24.12.2",
+        "@types/node": "^24.12.3",
         "c8": "^11.0.0",
         "chai": "^6.2.2",
-        "eslint": "^10.2.1",
-        "globals": "^17.5.0",
+        "eslint": "^10.3.0",
+        "globals": "^17.6.0",
         "mocha": "^11.7.5"
     }
 }
