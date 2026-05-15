@@ -24,9 +24,9 @@
         "test:unit": "export $(cat .env.local | grep -v '^#' | xargs) && c8 --reporter=lcov --reporter=text mocha test/unit/*"
     },
     "dependencies": {
-        "csv-parser": "^3.2.0",
+        "csv-parser": "^3.2.1",
         "dayjs": "^1.11.20",
-        "mongoose": "^9.6.1",
+        "mongoose": "^9.6.2",
         "node-fetch": "^3.3.2",
         "p-map": "^7.0.4",
         "p-queue": "^9.2.0",
@@ -34,7 +34,7 @@
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/node": "^24.12.3",
+        "@types/node": "^24.12.4",
         "c8": "^11.0.0",
         "chai": "^6.2.2",
         "eslint": "^10.3.0",
