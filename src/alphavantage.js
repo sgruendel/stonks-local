@@ -21,6 +21,7 @@ const httpAgent = new http.Agent({
 const httpsAgent = new https.Agent({
     keepAlive: true,
 });
+/** @type {{ agent: (parsedURL: URL) => http.Agent | https.Agent }} */
 const options = {
     agent: (_parsedURL) => {
         return _parsedURL.protocol === 'http:' ? httpAgent : httpsAgent;
@@ -54,6 +55,84 @@ const TA_RSI = 'Technical Analysis: RSI';
 const TA_ATR = 'Technical Analysis: ATR';
 const TA_NATR = 'Technical Analysis: NATR';
 
+/** @typedef {Object.<string, string | number>} AlphaVantageQueryParams */
+
+/** @typedef {Object.<string, unknown>} CompanyOverview */
+
+/** @typedef {Object.<string, string | Object.<string, Object.<string, string>> | undefined>} AlphaVantageApiResponse */
+
+/**
+ * @typedef {object} DailyAdjustedRecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} open Opening price.
+ * @property {number} high Daily high price.
+ * @property {number} low Daily low price.
+ * @property {number} close Closing price.
+ * @property {number} adjustedClose Split and dividend adjusted close price.
+ * @property {number} volume Traded volume.
+ * @property {number} dividendAmount Dividend amount for the day.
+ * @property {number} splitCoefficient Split coefficient for the day.
+ */
+
+/**
+ * @typedef {object} SMARecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} sma Simple moving average value.
+ */
+
+/**
+ * @typedef {object} EMARecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} ema Exponential moving average value.
+ */
+
+/**
+ * @typedef {object} MACDRecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} macd MACD line value.
+ * @property {number} hist MACD histogram value.
+ * @property {number} signal MACD signal line value.
+ */
+
+/**
+ * @typedef {object} RSIRecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} rsi Relative strength index value.
+ */
+
+/**
+ * @typedef {object} BBandsRecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} lower Lower Bollinger band.
+ * @property {number} upper Upper Bollinger band.
+ * @property {number} middle Middle Bollinger band.
+ */
+
+/**
+ * @typedef {object} ATRRecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} atr Average true range value.
+ */
+
+/**
+ * @typedef {object} NATRRecord
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} natr Normalized average true range value.
+ */
+
+/**
+ * Returns the configured API key or a random fallback key for anonymous requests.
+ *
+ * @returns {string} Alpha Vantage API key.
+ */
 function getApiKey() {
     if (API_KEY) return API_KEY;
 
@@ -64,10 +143,22 @@ function getApiKey() {
     return apiKey.toString();
 }
 
+/**
+ * Normalizes Alpha Vantage field names to lower camel case where applicable.
+ *
+ * @param {string} key Response field name.
+ * @returns {string} Normalized field name.
+ */
 function normalizeKey(key) {
     return /^[A-Z][a-z]/.test(key) ? key[0].toLowerCase() + key.substring(1) : key;
 }
 
+/**
+ * Detects whether a parsed JSON payload has any usable content.
+ *
+ * @param {unknown} value Parsed JSON value.
+ * @returns {boolean} True when the payload is nullish or structurally empty.
+ */
 function isEmptyJson(value) {
     if (value === null || value === undefined) return true;
     if (Array.isArray(value)) return value.length === 0;
@@ -76,14 +167,25 @@ function isEmptyJson(value) {
 }
 
 // see https://github.com/dynamoose/dynamoose/issues/209#issuecomment-374258965
+/**
+ * Retries Alpha Vantage requests when the API responds with throughput notes.
+ *
+ * @template TResult
+ * @param {(params: AlphaVantageQueryParams) => Promise<TResult>} callback Request function to execute.
+ * @param {AlphaVantageQueryParams} params Query string parameters.
+ * @param {number} [attempt=1] Current retry attempt.
+ * @returns {Promise<TResult>} Callback result after any required backoff.
+ */
 async function handleThroughput(callback, params, attempt = 1) {
     const BACK_OFF = 2000; // back off base time in millis
     const CAP = 60000; // max. back off time in millis
 
     const result = await callback(params);
+    const apiResponse = /** @type {AlphaVantageApiResponse} */ (result);
+    const note = apiResponse[NOTE];
     if (
-        result[NOTE] &&
-        result[NOTE].startsWith('Thank you for using Alpha Vantage! Our standard API call frequency is ')
+        typeof note === 'string' &&
+        note.startsWith('Thank you for using Alpha Vantage! Our standard API call frequency is ')
     ) {
         // exponential backoff with jitter,
         // see https://aws.amazon.com/de/blogs/architecture/exponential-backoff-and-jitter/
@@ -91,11 +193,17 @@ async function handleThroughput(callback, params, attempt = 1) {
         const sleep = temp / 2 + Math.floor((Math.random() * temp) / 2);
         logger.debug('Alphavantage: sleeping for ' + sleep + ' on attempt ' + attempt + ', temp ' + temp);
         await new Promise((resolve) => setTimeout(resolve, sleep));
-        return handleThroughput(callback, params, ++attempt);
+        return handleThroughput(callback, params, attempt + 1);
     }
     return result;
 }
 
+/**
+ * Executes a queued Alpha Vantage HTTP request and retries empty JSON payloads.
+ *
+ * @param {AlphaVantageQueryParams} qs Alpha Vantage query parameters.
+ * @returns {Promise<unknown>} Parsed JSON response or the non-ok fetch response.
+ */
 async function query(qs) {
     logger.debug('calling ' + querystring.stringify(qs));
     let attempt = 0;
@@ -115,36 +223,55 @@ async function query(qs) {
     }
 }
 
+/**
+ * Fetches a technical indicator series and converts the date-keyed payload into an array.
+ *
+ * @param {AlphaVantageQueryParams} qs Alpha Vantage query parameters.
+ * @param {string} resultKey Response key that contains the indicator series.
+ * @returns {Promise<Array<Object.<string, string> & { date: string }>>} Indicator values with their trading date.
+ */
 async function queryTechnicalIndicators(qs, resultKey) {
-    const result = await handleThroughput(query, qs);
-    if (result[ERROR_MESSAGE]) {
+    const result = /** @type {AlphaVantageApiResponse} */ (await handleThroughput(query, qs));
+    const errorMessage = result[ERROR_MESSAGE];
+    if (typeof errorMessage === 'string') {
         logger.error('error message for ' + resultKey + ':', result);
-        throw new Error(result[ERROR_MESSAGE]);
-    } else if (result[NOTE]) {
+        throw new Error(errorMessage);
+    }
+
+    const note = result[NOTE];
+    if (typeof note === 'string') {
         logger.error('note for ' + resultKey + ':', result);
-        throw new Error(result[NOTE]);
-    } else if (!result[resultKey]) {
+        throw new Error(note);
+    }
+
+    const resultObjArr = result[resultKey];
+    if (typeof resultObjArr !== 'object' || resultObjArr === null || Array.isArray(resultObjArr)) {
         logger.error(JSON.stringify(result));
         throw new Error('Invalid response for ' + JSON.stringify(qs));
     }
 
-    const resultObjArr = result[resultKey];
+    /** @type {Array<Object.<string, string> & { date: string }>} */
     const resultArr = [];
-    for (const date in resultObjArr) {
-        const resultObj = resultObjArr[date];
-        resultObj.date = date;
-        resultArr.push(resultObj);
+    for (const [date, resultObj] of Object.entries(resultObjArr)) {
+        resultArr.push({ ...resultObj, date });
     }
     return resultArr;
 }
 
+/**
+ * Retrieves normalized company overview metadata for a symbol.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @returns {Promise<CompanyOverview>} Normalized overview fields keyed by lower camel case names.
+ */
 export async function queryCompanyOverview(symbol) {
     const qs = {
         function: 'OVERVIEW',
         symbol: symbol,
         apikey: getApiKey(),
     };
-    const result = await handleThroughput(query, qs);
+    const result = /** @type {CompanyOverview} */ (await handleThroughput(query, qs));
+    /** @type {CompanyOverview} */
     const overview = {};
     Object.keys(result).forEach((key) => {
         overview[normalizeKey(key)] = result[key];
@@ -152,6 +279,13 @@ export async function queryCompanyOverview(symbol) {
     return overview;
 }
 
+/**
+ * Retrieves daily adjusted OHLCV data for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<DailyAdjustedRecord[]>} Daily adjusted price records.
+ */
 export async function queryDailyAdjusted(symbol, since) {
     const qs = {
         function: 'TIME_SERIES_DAILY_ADJUSTED',
@@ -178,6 +312,14 @@ export async function queryDailyAdjusted(symbol, since) {
         });
 }
 
+/**
+ * Retrieves simple moving average values for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {number} timePeriod Moving average period.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<SMARecord[]>} Simple moving average records.
+ */
 export async function querySMA(symbol, timePeriod, since) {
     const qs = {
         function: 'SMA',
@@ -195,6 +337,14 @@ export async function querySMA(symbol, timePeriod, since) {
         });
 }
 
+/**
+ * Retrieves exponential moving average values for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {number} timePeriod Moving average period.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<EMARecord[]>} Exponential moving average records.
+ */
 export async function queryEMA(symbol, timePeriod, since) {
     const qs = {
         function: 'EMA',
@@ -212,6 +362,13 @@ export async function queryEMA(symbol, timePeriod, since) {
         });
 }
 
+/**
+ * Retrieves MACD values for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<MACDRecord[]>} MACD records including histogram and signal values.
+ */
 export async function queryMACD(symbol, since) {
     const qs = {
         function: 'MACD',
@@ -234,6 +391,14 @@ export async function queryMACD(symbol, since) {
         });
 }
 
+/**
+ * Retrieves RSI values for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {number} timePeriod RSI period.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<RSIRecord[]>} Relative strength index records.
+ */
 export async function queryRSI(symbol, timePeriod, since) {
     const qs = {
         function: 'RSI',
@@ -255,6 +420,14 @@ export async function queryRSI(symbol, timePeriod, since) {
         });
 }
 
+/**
+ * Retrieves Bollinger Bands values for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {number} timePeriod Bollinger band period.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<BBandsRecord[]>} Bollinger band records.
+ */
 export async function queryBBands(symbol, timePeriod, since) {
     const qs = {
         function: 'BBANDS',
@@ -278,6 +451,14 @@ export async function queryBBands(symbol, timePeriod, since) {
         });
 }
 
+/**
+ * Retrieves average true range values for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {number} timePeriod ATR period.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<ATRRecord[]>} Average true range records.
+ */
 export async function queryATR(symbol, timePeriod, since) {
     const qs = {
         function: 'ATR',
@@ -298,6 +479,14 @@ export async function queryATR(symbol, timePeriod, since) {
         });
 }
 
+/**
+ * Retrieves normalized average true range values for a symbol from the given date onward.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {number} timePeriod NATR period.
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<NATRRecord[]>} Normalized average true range records.
+ */
 export async function queryNATR(symbol, timePeriod, since) {
     const qs = {
         function: 'NATR',

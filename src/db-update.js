@@ -22,79 +22,154 @@ import * as db from './db.js';
 const ALL_SYMBOLS = JSON.parse(fs.readFileSync('src/symbols.json').toString());
 const DATE_FORMAT = 'YYYY-MM-DD';
 
+/**
+ * @typedef {object} SymbolSince
+ * @property {string} symbol Stock ticker symbol.
+ * @property {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ */
+
+/**
+ * @typedef {object} OverviewRecord
+ * @property {string | undefined} [symbol] Stock ticker symbol.
+ * @property {string | undefined} [date] Snapshot date in YYYY-MM-DD format.
+ */
+
+/**
+ * @typedef {object} VixCsvRow
+ * @property {string} date Trading day in YYYY-MM-DD format.
+ * @property {number} open Opening value.
+ * @property {number} high Daily high.
+ * @property {number} low Daily low.
+ * @property {number} close Closing value.
+ * @property {number | undefined} [sma10] 10-day simple moving average.
+ * @property {number | undefined} [sma15] 15-day simple moving average.
+ * @property {number | undefined} [sma20] 20-day simple moving average.
+ * @property {number | undefined} [sma50] 50-day simple moving average.
+ * @property {number | undefined} [sma100] 100-day simple moving average.
+ * @property {number | undefined} [sma200] 200-day simple moving average.
+ */
+
+/** @typedef {Pick<db.TechnicalIndicator, 'symbol' | 'date'> & Partial<Omit<db.TechnicalIndicator, 'symbol' | 'date'>>} TechnicalIndicatorUpsert */
+
 // see https://www.investopedia.com/terms/s/sma.asp
+/**
+ * Fetches VIX history, derives rolling averages, and upserts rows from the requested date onward.
+ *
+ * @param {string} since Inclusive lower date bound in YYYY-MM-DD format.
+ * @returns {Promise<void>}
+ */
 async function updateVix(since) {
+    /**
+     * Calculates a simple moving average over the last `n` prices.
+     *
+     * @param {number[]} prices Closing prices ordered from oldest to newest.
+     * @param {number} n Window size.
+     * @returns {number} Simple moving average.
+     */
     const calcSMA = (prices, n) => {
         return prices.slice(-n).reduce((sum, price) => sum + price, 0) / n;
     };
 
     // see https://www.cboe.com/tradable_products/vix/vix_historical_data/
     const vixHistory = await fetch('https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv');
+    if (!vixHistory.body) {
+        throw new Error('missing VIX CSV response body');
+    }
+    const vixHistoryBody = vixHistory.body;
+
+    /** @type {VixCsvRow[]} */
     const results = [];
-    vixHistory.body
-        .pipe(
-            csv({
-                // eslint-disable-next-line no-unused-vars
-                mapHeaders: ({ header, index }) => header.toLowerCase(),
-                // eslint-disable-next-line no-unused-vars
-                mapValues: ({ header, index, value }) => {
-                    if (header === 'date') {
-                        return dayjs(value).format(DATE_FORMAT);
+    await new Promise((resolve, reject) => {
+        vixHistoryBody
+            .pipe(
+                csv({
+                    // eslint-disable-next-line no-unused-vars
+                    mapHeaders: ({ header, index }) => header.toLowerCase(),
+                    // eslint-disable-next-line no-unused-vars
+                    mapValues: ({ header, index, value }) => {
+                        if (header === 'date') {
+                            return dayjs(value).format(DATE_FORMAT);
+                        }
+                        return Number(value);
+                    },
+                }),
+            )
+            .on('data', (data) => results.push(/** @type {VixCsvRow} */ (data)))
+            .on('end', () => {
+                /** @type {number[]} */
+                const closes = [];
+                /** @type {PromiseLike<unknown>[]} */
+                const allPromises = [];
+
+                results.forEach((vix) => {
+                    closes.push(vix.close);
+                    if (closes.length >= 10) {
+                        vix.sma10 = calcSMA(closes, 10);
                     }
-                    return Number(value);
-                },
-            }),
-        )
-        .on('data', (data) => results.push(data))
-        .on('end', () => {
-            // console.log(results.length);
-            // console.log(results[results.length - 1]);
-            const closes = [];
-            let allPromises = [];
-            results.forEach((vix) => {
-                closes.push(vix.close);
-                if (closes.length >= 10) {
-                    vix.sma10 = calcSMA(closes, 10);
-                }
-                if (closes.length >= 15) {
-                    vix.sma15 = calcSMA(closes, 15);
-                }
-                if (closes.length >= 20) {
-                    vix.sma20 = calcSMA(closes, 20);
-                }
-                if (closes.length >= 50) {
-                    vix.sma50 = calcSMA(closes, 50);
-                }
-                if (closes.length >= 100) {
-                    vix.sma100 = calcSMA(closes, 100);
-                }
-                if (closes.length >= 200) {
-                    vix.sma200 = calcSMA(closes, 200);
-                }
-                if (closes.length > 200) {
-                    closes.shift();
-                }
-                if (vix.date >= since) {
-                    allPromises.push(db.VIX.updateOne({ date: vix.date }, vix, { upsert: true }));
-                }
-            });
-            Promise.all(allPromises).then(() => {
-                logger.info('finished VIX');
-            });
-        });
+                    if (closes.length >= 15) {
+                        vix.sma15 = calcSMA(closes, 15);
+                    }
+                    if (closes.length >= 20) {
+                        vix.sma20 = calcSMA(closes, 20);
+                    }
+                    if (closes.length >= 50) {
+                        vix.sma50 = calcSMA(closes, 50);
+                    }
+                    if (closes.length >= 100) {
+                        vix.sma100 = calcSMA(closes, 100);
+                    }
+                    if (closes.length >= 200) {
+                        vix.sma200 = calcSMA(closes, 200);
+                    }
+                    if (closes.length > 200) {
+                        closes.shift();
+                    }
+                    if (vix.date >= since) {
+                        allPromises.push(db.VIX.updateOne({ date: vix.date }, vix, { upsert: true }));
+                    }
+                });
+
+                Promise.all(allPromises).then(
+                    () => {
+                        logger.info('finished VIX');
+                        resolve(undefined);
+                    },
+                    (err) => reject(err),
+                );
+            })
+            .on('error', reject);
+    });
 }
 
+/**
+ * Updates one symbol/date job entry from the p-map queue.
+ *
+ * @param {SymbolSince} symbolSince Symbol and lower date bound.
+ * @returns {Promise<void>}
+ */
 async function updateSymbol(symbolSince) {
     return updateSymbolAsync(symbolSince.symbol, symbolSince.since);
 }
 
+/**
+ * Update the database for a symbol since a date. The date is used to limit the data from Alpha Vantage, but the
+ * function will update all data in the database for that symbol and date, so it can be used to fix any bad data in the
+ * database.
+
+ * @param {string} symbol stock symbol, e.g. AAPL
+ * @param {string} since date in YYYY-MM-DD format, e.g. 2020-01-01
+ * @returns {Promise<void>}
+ */
 async function updateSymbolAsync(symbol, since) {
     logger.info(symbol + ' ...');
 
+    /** @type {PromiseLike<unknown>[]} */
     let allPromises = [];
     try {
-        let overview = await alphavantage.queryCompanyOverview(symbol);
-        if (overview.symbol) {
+        const overview = /** @type {OverviewRecord & Object.<string, unknown>} */ (
+            await alphavantage.queryCompanyOverview(symbol)
+        );
+        if (typeof overview.symbol === 'string') {
             // e.g. BYDDF and XIACF do not
             overview.date = dayjs().format(DATE_FORMAT);
             allPromises.push(
@@ -144,7 +219,8 @@ async function updateSymbolAsync(symbol, since) {
 
         for (let i = 0; i < dailyAdjusteds.length; i++) {
             const filter = { symbol: symbol, date: dailyAdjusteds[i].date };
-            let ti = filter;
+            /** @type {TechnicalIndicatorUpsert} */
+            const ti = { ...filter };
 
             if (i < sma250s.length) {
                 if (
@@ -234,7 +310,7 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
         }
 
         console.log('all promises ' + symbol, allPromises.length);
-        return Promise.all(allPromises);
+        await Promise.all(allPromises);
     } catch (err) {
         logger.error(symbol, err);
     }

@@ -21,9 +21,29 @@ import * as db from './db.js';
  * @property {number} avgSharePrice average share price
  * @property {number} daysSinceBuy days since last buy
  * @property {number} profit profit taken so far
- * @property {number} profitTarget profit target
+ * @property {number | undefined} profitTarget profit target
  * @property {number} redDaysSinceBuy red days since last buy
- * @property {number} stopLoss stop loss
+ * @property {number | undefined} stopLoss stop loss
+ */
+
+/**
+ * @typedef {object} SymbolDateFilter
+ * @property {string} symbol Stock ticker symbol.
+ * @property {{$lte: string}} date Inclusive upper date bound.
+ */
+
+/**
+ * @typedef {object} TechnicalIndicatorsForDate
+ * @property {db.TechnicalIndicator | undefined} tiBefore Technical indicators for the previous trading day.
+ * @property {db.TechnicalIndicator | undefined} tiCurrent Technical indicators for the current trading day.
+ */
+
+/**
+ * @typedef {object} TradeOptions
+ * @property {string | undefined} [buySignalSymbol] Alternate symbol used to derive buy signals.
+ * @property {number | undefined} [buyAmount] Amount to invest on each buy.
+ * @property {boolean | undefined} [isSavingsPlan] Whether monthly contributions are allowed.
+ * @property {boolean | undefined} [useSignalSma250AsSellPrice] Whether SMA250 should be used as the sell price.
  */
 
 /**
@@ -87,19 +107,22 @@ ALL_SYMBOLS.forEach((symbol) => {
 });
 
 /**
+ * Returns the lowest tracked low for a symbol across the rolling 20-day window.
  *
  * @param {string} symbol stock symbol
- * @returns number | undefined
+ * @returns {number | undefined} Lowest tracked low, if available.
  */
 const swingLow = (symbol) => {
     return lows[symbol].length === 0 ? undefined : Math.min(...lows[symbol]);
 };
+void swingLow;
 
 /**
+ * Builds a Mongo-style filter for rows on or before a given trading date.
  *
  * @param {string} symbol stock symbol
  * @param {dayjs.Dayjs} date date
- * @returns {{symbol: string, date: Object}}
+ * @returns {SymbolDateFilter} Query filter for the symbol and date bound.
  */
 const filterOnOrBefore = (symbol, date) => {
     return {
@@ -109,10 +132,11 @@ const filterOnOrBefore = (symbol, date) => {
 };
 
 /**
+ * Loads the most recent daily adjusted row for a symbol on or before the given date.
  *
- * @param {string} symbol
- * @param {dayjs.Dayjs} date
- * @returns {Promise<db.DailyAdjusted>}
+ * @param {string} symbol stock symbol
+ * @param {dayjs.Dayjs} date trading day upper bound
+ * @returns {Promise<db.DailyAdjusted>} Most recent daily adjusted row.
  */
 async function getDailyAdjustedFor(symbol, date) {
     const dailyAdjusted = await db.DailyAdjusted.find(filterOnOrBefore(symbol, date))
@@ -123,10 +147,11 @@ async function getDailyAdjustedFor(symbol, date) {
 }
 
 /**
+ * Loads the current and previous technical-indicator rows for a symbol on or before the given date.
  *
- * @param {string} symbol
- * @param {dayjs.Dayjs} date
- * @returns {Promise<{tiBefore: db.TechnicalIndicator | undefined, tiCurrent: db.TechnicalIndicator | undefined}>}
+ * @param {string} symbol stock symbol
+ * @param {dayjs.Dayjs} date trading day upper bound
+ * @returns {Promise<TechnicalIndicatorsForDate>} Previous and current indicator rows.
  */
 async function getTechnicalIndicatorsFor(symbol, date) {
     /** @type {db.TechnicalIndicator[]} */
@@ -139,9 +164,10 @@ async function getTechnicalIndicatorsFor(symbol, date) {
 }
 
 /**
+ * Loads the most recent VIX rows up to the given trading date.
  *
- * @param {dayjs.Dayjs} date
- * @returns {Promise<db.VIX[]>}
+ * @param {dayjs.Dayjs} date trading day upper bound
+ * @returns {Promise<db.VIX[]>} Up to three recent VIX rows.
  */
 async function getVIXsFor(date) {
     /** @type {db.VIX[]} */
@@ -154,14 +180,20 @@ async function getVIXsFor(date) {
 }
 
 /**
+ * Calculates the current market value of the depot for the given trading date.
  *
- * @param {dayjs.Dayjs} date
- * @returns {Promise<number>} depot value
+ * @param {dayjs.Dayjs} date trading day
+ * @returns {Promise<number>} Depot value.
  */
 async function calcDepot(date) {
     const values = Object.keys(depot).map(async (symbol) => {
         const amount = depot[symbol].amount;
-        return amount === 0 ? 0 : amount * (await getDailyAdjustedFor(symbol, date)).adjustedClose;
+        if (amount === 0) {
+            return 0;
+        }
+
+        const dailyAdjusted = await getDailyAdjustedFor(symbol, date);
+        return dailyAdjusted ? amount * dailyAdjusted.adjustedClose : 0;
     });
     return (await Promise.all(values)).reduce((sum, value) => sum + value);
 }
@@ -171,8 +203,8 @@ async function calcDepot(date) {
  * @param {dayjs.Dayjs} date trading day
  * @param {string} symbol stock symbol
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
- * @param {number} buyAmount amount to invest
- * @param {boolean} isSavingsPlan whether to skip re-buy averaging checks
+ * @param {number} [buyAmount=MAX_BUY] amount to invest
+ * @param {boolean} [isSavingsPlan=false] whether to skip re-buy averaging checks
  * @returns {Promise<boolean>} true if bought
  */
 async function buy(date, symbol, dailyAdjusted, buyAmount = MAX_BUY, isSavingsPlan = false) {
@@ -256,6 +288,8 @@ async function buy(date, symbol, dailyAdjusted, buyAmount = MAX_BUY, isSavingsPl
                 ', not enough $ :(',
         );
     }
+
+    return false;
 }
 
 /**
@@ -263,8 +297,8 @@ async function buy(date, symbol, dailyAdjusted, buyAmount = MAX_BUY, isSavingsPl
  * @param {dayjs.Dayjs} date trading day
  * @param {string} symbol stock symbol
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
- * @param {boolean} force
- * @param {number} sellPrice
+ * @param {boolean} [force=false] whether to force a sell even below the average entry price
+ * @param {number | undefined} [sellPrice] explicit price override
  * @returns {Promise<boolean>} true if sold
  */
 async function sell(date, symbol, dailyAdjusted, force = false, sellPrice = undefined) {
@@ -305,6 +339,8 @@ async function sell(date, symbol, dailyAdjusted, force = false, sellPrice = unde
             logger.info('not selling ' + symbol + ' at lower price');
         }
     }
+
+    return false;
 }
 
 /**
@@ -322,6 +358,8 @@ function buyItMacdSLC(tiBefore, tiCurrent) {
             return true;
         }
     }
+
+    return false;
 }
 
 /**
@@ -338,6 +376,8 @@ function sellItMacdSLC(tiBefore, tiCurrent) {
             return true;
         }
     }
+
+    return false;
 }
 
 /**
@@ -355,6 +395,8 @@ function buyItMacdZLC(tiBefore, tiCurrent) {
             return true;
         }
     }
+
+    return false;
 }
 
 /**
@@ -371,6 +413,8 @@ function sellItMacdZLC(tiBefore, tiCurrent) {
             return true;
         }
     }
+
+    return false;
 }
 
 /**
@@ -389,6 +433,8 @@ function buyItMacdHist(tiBefore, tiCurrent) {
             return tiCurrent.macd < 0.0 && tiCurrent.rsi14 < 50.0;
         }
     }
+
+    return false;
 }
 
 /**
@@ -407,6 +453,8 @@ function sellItMacdHist(tiBefore, tiCurrent) {
             return tiCurrent.macd > 0.0 && tiCurrent.rsi14 > 50.0;
         }
     }
+
+    return false;
 }
 
 /**
@@ -425,6 +473,8 @@ function buyItMacdHistAnal(tiBefore, tiCurrent) {
             return tiCurrent.macd < 0.0 && tiCurrent.rsi14 < 50.0;
         }
     }
+
+    return false;
 }
 
 /**
@@ -443,6 +493,8 @@ function sellItMacdHistAnal(tiBefore, tiCurrent) {
             return tiCurrent.macd > 0.0 && tiCurrent.rsi14 > 70.0;
         }
     }
+
+    return false;
 }
 
 /**
@@ -462,6 +514,8 @@ function buyItBB(tiBefore, tiCurrent, dailyAdjusted) {
             return dailyAdjusted.adjustedClose < tiCurrent.bbandLower;
         }
     }
+
+    return false;
 }
 
 /**
@@ -483,6 +537,8 @@ function sellItBB(tiBefore, tiCurrent, dailyAdjusted) {
             );
         }
     }
+
+    return false;
 }
 
 /**
@@ -502,6 +558,8 @@ function buyItRSI(tiBefore, tiCurrent) {
             return true; //tiBefore.bbandUpper < tiCurrent.bbandUpper;
         }
     }
+
+    return false;
 }
 
 /**
@@ -517,6 +575,8 @@ function sellItRSI(tiBefore, tiCurrent) {
             return true;
         }
     }
+
+    return false;
 }
 
 /**
@@ -533,6 +593,8 @@ function buyItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
             return dailyAdjusted.adjustedClose > tiCurrent.ema5;
         }
     }
+
+    return false;
 }
 
 /**
@@ -558,6 +620,8 @@ function sellItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
             }
         }
     }
+
+    return false;
 }
 
 // see http://www.traderslaboratory.com/forums/topic/6931-combining-rsi-and-vix-into-a-winning-system/
@@ -571,6 +635,7 @@ function sellItEMACloud2(tiBefore, tiCurrent, dailyAdjusted) {
  * @returns {boolean} true if sell signal
  */
 function buyItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
+    void tiBefore;
     if (dailyAdjusted.adjustedClose > tiCurrent.ema200) {
         // TODO only if above SMA50 or EMA100
         // TODO only if not a red day (close > open)
@@ -583,6 +648,8 @@ function buyItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
             vixs[2].close >= vixs[2].sma10 * 1.05
         );
     }
+
+    return false;
 }
 
 /**
@@ -595,11 +662,15 @@ function buyItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
  * @returns {boolean} true if sell signal
  */
 function sellItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
+    void dailyAdjusted;
+    void vixs;
     if (tiBefore.rsi2 && tiCurrent.rsi2) {
         if (tiBefore.rsi2 > tiCurrent.rsi2 && tiBefore.rsi2 > 65.0) {
             return true;
         }
     }
+
+    return false;
 }
 
 /**
@@ -611,10 +682,13 @@ function sellItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
  * @returns {boolean} true if buy signal
  */
 function buyItLeveragedEtf(tiBefore, tiCurrent, dailyAdjusted) {
+    void tiBefore;
     console.log('buyItLeveragedEtf: ' + dailyAdjusted.open + ' > ' + tiCurrent.sma250 + '?');
     if (tiCurrent.sma250) {
         return dailyAdjusted.open > tiCurrent.sma250;
     }
+
+    return false;
 }
 
 /**
@@ -626,9 +700,12 @@ function buyItLeveragedEtf(tiBefore, tiCurrent, dailyAdjusted) {
  * @returns {boolean} true if sell signal
  */
 function sellItLeveragedEtf(tiBefore, tiCurrent, dailyAdjusted) {
+    void tiBefore;
     if (tiCurrent.sma250) {
         return dailyAdjusted.low < tiCurrent.sma250;
     }
+
+    return false;
 }
 
 /**
@@ -651,12 +728,7 @@ function isFirstTradingDayOfMonth(tiBefore, tiCurrent) {
  * @param {BuyItFn} buyItFn
  * @param {SellItFn} sellItFn
  * @param {string} strategy
- * @param {{
- *   buySignalSymbol?: string,
- *   buyAmount?: number,
- *   isSavingsPlan?: boolean,
- *   useSignalSma250AsSellPrice?: boolean,
- * }} options
+ * @param {TradeOptions} options
  * @returns {Promise<boolean>} true if trade was successful
  */
 async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy, options = {}) {
@@ -825,16 +897,19 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy, options = 
 
         return result;
     }
+
+    return false;
 }
 
 /**
  * Emulate trades for stock symbols from fromDate to toDate using specific strategy
  *
- * @param {string[]} symbols
- * @param {dayjs.Dayjs} fromDate
- * @param {dayjs.Dayjs} toDate
- * @param {string} strategy
- * @param {string | undefined} unleveragedEtf
+ * @param {string[]} symbols Stock symbols to trade.
+ * @param {dayjs.Dayjs} fromDate Inclusive start date.
+ * @param {dayjs.Dayjs} toDate Inclusive end date.
+ * @param {string} strategy Strategy identifier.
+ * @param {string | undefined} unleveragedEtf Unleveraged ETF used as the signal source for leveraged ETF mode.
+ * @returns {Promise<void>}
  */
 async function emulateTrades(symbols, fromDate, toDate, strategy, unleveragedEtf = undefined) {
     const lastTradingDate = dayjs((await getDailyAdjustedFor(symbols[0], toDate)).date, DATE_FORMAT);
