@@ -51,6 +51,69 @@ const DATE_FORMAT = 'YYYY-MM-DD';
 
 /** @typedef {Pick<db.TechnicalIndicator, 'symbol' | 'date'> & Partial<Omit<db.TechnicalIndicator, 'symbol' | 'date'>>} TechnicalIndicatorUpsert */
 
+const RSI14_SMA_PERIOD = 14;
+
+/**
+ * Calculates a simple moving average over the last `period` numeric values.
+ *
+ * @param {number[]} values Values ordered from oldest to newest.
+ * @param {number} period Window size.
+ * @returns {number} Simple moving average.
+ */
+function calcSMA(values, period) {
+    return values.slice(-period).reduce((sum, value) => sum + value, 0) / period;
+}
+
+/**
+ * Loads the previous RSI14 values from MongoDB and computes SMA14 values for the newly fetched RSI14 series.
+ *
+ * @param {string} symbol Stock ticker symbol.
+ * @param {alphavantage.RSIRecord[]} rsi14s Newly fetched RSI14 values.
+ * @returns {Promise<Map<string, number>>} RSI14 SMA14 values keyed by trading date.
+ */
+async function getRsi14Sma14ByDate(symbol, rsi14s) {
+    if (rsi14s.length === 0) {
+        return new Map();
+    }
+
+    const earliestRsi14Date = rsi14s.reduce((earliestDate, rsi14) => {
+        return rsi14.date < earliestDate ? rsi14.date : earliestDate;
+    }, rsi14s[0].date);
+
+    /** @type {Array<Pick<db.TechnicalIndicator, 'date' | 'rsi14'>>} */
+    // @ts-ignore Mongoose query typing is wider than the projection shape used here.
+    const historicalRsi14s = await db.TechnicalIndicator.find({
+        symbol: symbol,
+        date: { $lt: earliestRsi14Date },
+        rsi14: { $exists: true },
+    })
+        .select({ date: 1, rsi14: 1, _id: 0 })
+        .sort({ date: 'desc' })
+        .limit(RSI14_SMA_PERIOD - 1)
+        .exec();
+
+    const rsiWindow = historicalRsi14s
+        .slice()
+        .reverse()
+        .map((technicalIndicator) => technicalIndicator.rsi14)
+        .filter((rsi14) => rsi14 !== undefined);
+
+    /** @type {Map<string, number>} */
+    const rsi14Sma14ByDate = new Map();
+    const rsi14sAscending = rsi14s.slice().sort((left, right) => left.date.localeCompare(right.date));
+    rsi14sAscending.forEach((rsi14) => {
+        rsiWindow.push(rsi14.rsi);
+        if (rsiWindow.length > RSI14_SMA_PERIOD) {
+            rsiWindow.shift();
+        }
+        if (rsiWindow.length === RSI14_SMA_PERIOD) {
+            rsi14Sma14ByDate.set(rsi14.date, calcSMA(rsiWindow, RSI14_SMA_PERIOD));
+        }
+    });
+
+    return rsi14Sma14ByDate;
+}
+
 // see https://www.investopedia.com/terms/s/sma.asp
 /**
  * Fetches VIX history, derives rolling averages, and upserts rows from the requested date onward.
@@ -59,17 +122,6 @@ const DATE_FORMAT = 'YYYY-MM-DD';
  * @returns {Promise<void>}
  */
 async function updateVix(since) {
-    /**
-     * Calculates a simple moving average over the last `n` prices.
-     *
-     * @param {number[]} prices Closing prices ordered from oldest to newest.
-     * @param {number} n Window size.
-     * @returns {number} Simple moving average.
-     */
-    const calcSMA = (prices, n) => {
-        return prices.slice(-n).reduce((sum, price) => sum + price, 0) / n;
-    };
-
     // see https://www.cboe.com/tradable_products/vix/vix_historical_data/
     const vixHistory = await fetch('https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv');
     if (!vixHistory.body) {
@@ -213,6 +265,7 @@ async function updateSymbolAsync(symbol, since) {
         const macds = await alphavantage.queryMACD(symbol, since);
         const rsi2s = await alphavantage.queryRSI(symbol, 2, since);
         const rsi14s = await alphavantage.queryRSI(symbol, 14, since);
+        const rsi14Sma14ByDate = await getRsi14Sma14ByDate(symbol, rsi14s);
         const bbands = await alphavantage.queryBBands(symbol, 20, since);
         const atr14s = await alphavantage.queryATR(symbol, 14, since);
         const natr14s = await alphavantage.queryNATR(symbol, 14, since);
@@ -297,7 +350,13 @@ fill(ema34plot, ema50plot, color=ema34 > ema50 ? color.green : color.red, transp
                 ti.macdSignal = macds[i].signal;
             }
             if (rsi2s[i]) ti.rsi2 = rsi2s[i].rsi;
-            if (rsi14s[i]) ti.rsi14 = rsi14s[i].rsi;
+            if (rsi14s[i]) {
+                ti.rsi14 = rsi14s[i].rsi;
+                const rsi14Sma14 = rsi14Sma14ByDate.get(rsi14s[i].date);
+                if (rsi14Sma14 !== undefined) {
+                    ti.rsi14Sma14 = rsi14Sma14;
+                }
+            }
             if (bbands[i]) {
                 ti.bbandLower = bbands[i].lower;
                 ti.bbandUpper = bbands[i].upper;

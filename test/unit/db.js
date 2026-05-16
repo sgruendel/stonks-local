@@ -118,6 +118,13 @@ describe('db', () => {
         });
     });
 
+    describe('#TechnicalIndicator.rsi14Sma14.validate()', () => {
+        it('should work for 55.5', () => {
+            const schemaObj = db.TechnicalIndicator.schema.obj;
+            expect(schemaObj.rsi14Sma14.validate(55.5)).to.be.true;
+        });
+    });
+
     describe('#TechnicalIndicator.sma250.validate()', () => {
         it('should work for 123.45', () => {
             const schemaObj = db.TechnicalIndicator.schema.obj;
