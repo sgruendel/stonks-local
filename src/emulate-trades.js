@@ -51,6 +51,7 @@ const DATE_FORMAT = 'YYYY-MM-DD';
 const DE_NUMBER_FORMAT = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
 
 let cash = 100000;
+let cashInvested = cash;
 const MIN_BUY = 500;
 const MAX_BUY = 1000;
 const MAX_VALUE = 10000;
@@ -170,26 +171,51 @@ async function calcDepot(date) {
  * @param {dayjs.Dayjs} date trading day
  * @param {string} symbol stock symbol
  * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
+ * @param {number} buyAmount amount to invest
+ * @param {boolean} isSavingsPlan whether to skip re-buy averaging checks
  * @returns {Promise<boolean>} true if bought
  */
-async function buy(date, symbol, dailyAdjusted) {
+async function buy(date, symbol, dailyAdjusted, buyAmount = MAX_BUY, isSavingsPlan = false) {
     const sharePrice = dailyAdjusted.adjustedClose;
 
-    if (depot[symbol].amount > 0) {
+    if (isSavingsPlan) {
+        if (cash >= MIN_BUY) {
+            buyAmount = cash;
+        } else {
+            const contribution = MIN_BUY - cash;
+            if (contribution > 0) {
+                cash += contribution;
+                cashInvested += contribution;
+                logger.info(
+                    'savings plan: adding ' +
+                        DE_NUMBER_FORMAT.format(contribution) +
+                        ' cash on ' +
+                        date.format(DATE_FORMAT),
+                );
+            }
+            buyAmount = MIN_BUY;
+        }
+    }
+
+    if (!isSavingsPlan && depot[symbol].amount > 0) {
         // performs better with rebuying, but only when down cost averaging
         if (sharePrice >= depot[symbol].avgSharePrice) {
             logger.info('not re-buying ' + symbol + ' at higher price');
             return false;
         }
 
-        if (depot[symbol].amount * depot[symbol].avgSharePrice + MIN_BUY > MAX_VALUE) {
+        if (depot[symbol].amount * depot[symbol].avgSharePrice + buyAmount > MAX_VALUE) {
             logger.info('not re-buying ' + symbol + ', already maxed out');
             return false;
         }
     }
 
-    if (cash >= MIN_BUY && cash >= sharePrice + TRANSACTION_FEE) {
-        const amount = Math.floor(Math.min(MAX_BUY, cash - TRANSACTION_FEE) / sharePrice);
+    if (cash >= buyAmount && cash >= sharePrice + TRANSACTION_FEE) {
+        const amount = Math.floor(Math.min(buyAmount, cash - TRANSACTION_FEE) / sharePrice);
+        if (amount === 0) {
+            logger.info("can't buy " + symbol + ' on ' + date.format(DATE_FORMAT) + ', amount would be 0 shares');
+            return false;
+        }
         cash -= amount * sharePrice + TRANSACTION_FEE;
         if (depot[symbol].amount > 0) {
             const newAmount = depot[symbol].amount + amount;
@@ -577,6 +603,47 @@ function sellItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
 }
 
 /**
+ * Leveraged ETF strategy, buy when price is above SMA250
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
+ * @returns {boolean} true if buy signal
+ */
+function buyItLeveragedEtf(tiBefore, tiCurrent, dailyAdjusted) {
+    console.log('buyItLeveragedEtf: ' + dailyAdjusted.open + ' > ' + tiCurrent.sma250 + '?');
+    if (tiCurrent.sma250) {
+        return dailyAdjusted.open > tiCurrent.sma250;
+    }
+}
+
+/**
+ * Leveraged ETF strategy, sell when price is below SMA250
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @param {db.DailyAdjusted} dailyAdjusted daily adjusted data
+ * @returns {boolean} true if sell signal
+ */
+function sellItLeveragedEtf(tiBefore, tiCurrent, dailyAdjusted) {
+    if (tiCurrent.sma250) {
+        return dailyAdjusted.low < tiCurrent.sma250;
+    }
+}
+
+/**
+ * Check if current day is first trading day of month, i.e. month of current day is different than month of previous trading day
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @returns {boolean} true if current day is first trading day of month
+ */
+function isFirstTradingDayOfMonth(tiBefore, tiCurrent) {
+    return dayjs(tiBefore.date, DATE_FORMAT).month() !== dayjs(tiCurrent.date, DATE_FORMAT).month();
+}
+
+/**
+ * Emulate trade for 'symbol' on 'date' using 'buyItFn' and 'sellItFn' to check for buy and sell signals, and 'vixs' for VIX based strategies
  *
  * @param {string} symbol
  * @param {dayjs.Dayjs} date
@@ -584,14 +651,26 @@ function sellItVIXStretchStrategy(tiBefore, tiCurrent, dailyAdjusted, vixs) {
  * @param {BuyItFn} buyItFn
  * @param {SellItFn} sellItFn
  * @param {string} strategy
+ * @param {{
+ *   buySignalSymbol?: string,
+ *   buyAmount?: number,
+ *   isSavingsPlan?: boolean,
+ *   useSignalSma250AsSellPrice?: boolean,
+ * }} options
  * @returns {Promise<boolean>} true if trade was successful
  */
-async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
+async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy, options = {}) {
     const dailyAdjustedP = getDailyAdjustedFor(symbol, date);
     const tisP = getTechnicalIndicatorsFor(symbol, date);
+    const buySignalSymbol = options.buySignalSymbol || symbol;
+    const buySignalDailyAdjustedP =
+        buySignalSymbol === symbol ? dailyAdjustedP : getDailyAdjustedFor(buySignalSymbol, date);
+    const buySignalTisP = buySignalSymbol === symbol ? tisP : getTechnicalIndicatorsFor(buySignalSymbol, date);
 
     const dailyAdjusted = await dailyAdjustedP;
     const { tiBefore, tiCurrent } = await tisP;
+    const buySignalDailyAdjusted = await buySignalDailyAdjustedP;
+    const { tiBefore: buySignalTiBefore, tiCurrent: buySignalTiCurrent } = await buySignalTisP;
 
     // only trade if symbol is being traded on 'date', and if we have technical indicators for 'date' and day before
     if (dailyAdjusted && date.isSame(dailyAdjusted.date) && tiBefore && tiCurrent) {
@@ -653,35 +732,62 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
         let result = false;
         if (forceSell && !sellPrice) {
             result = await sell(date, symbol, dailyAdjusted, true);
-        } else if (forceSell && sellPrice > 0.0) {
+        } else if (forceSell && sellPrice && sellPrice > 0.0) {
             result = await sell(date, symbol, dailyAdjusted, true, sellPrice);
         } else {
-            const buyIt = buyItFn(tiBefore, tiCurrent, dailyAdjusted, vixs);
+            let buyIt = false;
+            if (
+                buySignalDailyAdjusted &&
+                date.isSame(buySignalDailyAdjusted.date) &&
+                buySignalTiBefore &&
+                buySignalTiCurrent
+            ) {
+                if (
+                    !options.isSavingsPlan ||
+                    cash > MIN_BUY ||
+                    isFirstTradingDayOfMonth(buySignalTiBefore, buySignalTiCurrent)
+                ) {
+                    buyIt = buyItFn(buySignalTiBefore, buySignalTiCurrent, buySignalDailyAdjusted, vixs);
+                }
+            }
             const sellIt = sellItFn(tiBefore, tiCurrent, dailyAdjusted, vixs);
             // TODO Gewinnmitnahme / stop loss via ATR: https://broker-test.de/trading-news/modifizierter-macd-und-die-average-true-range-35691/
 
-            if (buyIt && !sellIt) {
+            if (sellIt && options.useSignalSma250AsSellPrice) {
+                if (depot[symbol].amount > 0) {
+                    logger.info(strategy + ': sell ' + symbol + ' on ' + date.format(DATE_FORMAT));
+                }
+                result = await sell(date, symbol, dailyAdjusted, true, tiCurrent.sma250);
+            } else if (buyIt && !sellIt) {
                 // always buy with EMA Clouds, even if sell signal is true
                 logger.info(strategy + ': buy ' + symbol + ' on ' + date.format(DATE_FORMAT));
-                result = await buy(date, symbol, dailyAdjusted);
+                result = await buy(
+                    date,
+                    symbol,
+                    dailyAdjusted,
+                    options.buyAmount === undefined ? MAX_BUY : options.buyAmount,
+                    options.isSavingsPlan === true,
+                );
                 if (result) {
                     depot[symbol].daysSinceBuy = 0;
                     depot[symbol].redDaysSinceBuy = 0;
-                    //const newStopLoss = swingLow(symbol);
-                    const newStopLoss = dailyAdjusted.adjustedClose - 3 * tiCurrent.atr14;
-                    logger.info(
-                        symbol + ': current stop loss is ' + depot[symbol].stopLoss + ', new is ' + newStopLoss,
-                    );
-                    if (!depot[symbol].stopLoss || newStopLoss < depot[symbol].stopLoss) {
-                        depot[symbol].stopLoss = newStopLoss;
-                        depot[symbol].profitTarget = 1.5 * depot[symbol].stopLoss;
+                    if (!options.useSignalSma250AsSellPrice) {
+                        //const newStopLoss = swingLow(symbol);
+                        const newStopLoss = dailyAdjusted.adjustedClose - 3 * tiCurrent.atr14;
                         logger.info(
-                            symbol +
-                                ': stop loss now ' +
-                                depot[symbol].stopLoss +
-                                ', profit target ' +
-                                depot[symbol].profitTarget,
+                            symbol + ': current stop loss is ' + depot[symbol].stopLoss + ', new is ' + newStopLoss,
                         );
+                        if (!depot[symbol].stopLoss || newStopLoss < depot[symbol].stopLoss) {
+                            depot[symbol].stopLoss = newStopLoss;
+                            depot[symbol].profitTarget = 1.5 * depot[symbol].stopLoss;
+                            logger.info(
+                                symbol +
+                                    ': stop loss now ' +
+                                    depot[symbol].stopLoss +
+                                    ', profit target ' +
+                                    depot[symbol].profitTarget,
+                            );
+                        }
                     }
                 }
             } else if (sellIt && !buyIt) {
@@ -728,8 +834,9 @@ async function trade(symbol, date, vixs, buyItFn, sellItFn, strategy) {
  * @param {dayjs.Dayjs} fromDate
  * @param {dayjs.Dayjs} toDate
  * @param {string} strategy
+ * @param {string | undefined} unleveragedEtf
  */
-async function emulateTrades(symbols, fromDate, toDate, strategy) {
+async function emulateTrades(symbols, fromDate, toDate, strategy, unleveragedEtf = undefined) {
     const lastTradingDate = dayjs((await getDailyAdjustedFor(symbols[0], toDate)).date, DATE_FORMAT);
     logger.info('last trading day is ' + lastTradingDate.format(DATE_FORMAT));
 
@@ -787,6 +894,14 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
                                 sellItVIXStretchStrategy,
                                 strategy,
                             );
+
+                        case 'leveraged-etf':
+                            return await trade(symbol, date, vixs, buyItLeveragedEtf, sellItLeveragedEtf, strategy, {
+                                buySignalSymbol: unleveragedEtf,
+                                buyAmount: MIN_BUY,
+                                isSavingsPlan: true,
+                                useSignalSma250AsSellPrice: true,
+                            });
 
                         default:
                             throw new Error('unknown strategy ' + strategy);
@@ -848,8 +963,15 @@ async function emulateTrades(symbols, fromDate, toDate, strategy) {
     logger.info('cash now is ' + DE_NUMBER_FORMAT.format(cash));
 
     const depotValue = await calcDepot(lastTradingDate);
+    const totalValue = cash + depotValue;
+    const overallProfitLoss = totalValue - cashInvested;
+    const overallProfitLossPct = cashInvested > 0 ? (overallProfitLoss / cashInvested) * 100 : 0;
+
     logger.info('depot value is ' + DE_NUMBER_FORMAT.format(depotValue));
-    logger.info('sum of cash+depot is ' + DE_NUMBER_FORMAT.format(cash + depotValue));
+    logger.info('sum of cash+depot is ' + DE_NUMBER_FORMAT.format(totalValue));
+    logger.info('cash invested over time is ' + DE_NUMBER_FORMAT.format(cashInvested));
+    logger.info('overall p/l is ' + DE_NUMBER_FORMAT.format(overallProfitLoss));
+    logger.info('overall p/l % is ' + DE_NUMBER_FORMAT.format(overallProfitLossPct) + '%');
     logger.info(
         'transaction fees / taxes (already included in cash): ' +
             DE_NUMBER_FORMAT.format(transactionFees) +
@@ -875,5 +997,15 @@ const to = args[2] || dayjs().format(DATE_FORMAT);
 // trading strategy to use, default is MACD Signal Line Crossover
 const strategy = args[3] || 'MACD-SLC';
 
-logger.info(`emulating trades for ${symbols} from ${from} to ${to} using strategy ${strategy} ...`);
-emulateTrades(symbols, dayjs(from, DATE_FORMAT), dayjs(to, DATE_FORMAT), strategy);
+const unleveragedEtf = args[4];
+
+if (strategy === 'leveraged-etf' && !unleveragedEtf) {
+    throw new Error('strategy leveraged-etf requires an unleveraged ETF symbol as 5th argument');
+}
+
+logger.info(
+    `emulating trades for ${symbols} from ${from} to ${to} using strategy ${strategy}` +
+        (unleveragedEtf ? ` and unleveraged ETF ${unleveragedEtf}` : '') +
+        ' ...',
+);
+emulateTrades(symbols, dayjs(from, DATE_FORMAT), dayjs(to, DATE_FORMAT), strategy, unleveragedEtf);
