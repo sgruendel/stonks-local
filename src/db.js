@@ -15,7 +15,41 @@ mongoose.connect('mongodb://localhost:27017/stonks');
 
 export { disconnect } from 'mongoose';
 
+/**
+ * Checks whether a schema string value is non-empty.
+ *
+ * @param {string} value Value to validate.
+ * @returns {boolean} True when the string is not empty.
+ */
+const isNonEmptyString = (value) => value.length > 0;
+
+/**
+ * Checks whether a numeric schema value is zero or greater.
+ *
+ * @param {number} value Value to validate.
+ * @returns {boolean} True when the value is non-negative.
+ */
+const isNonNegative = (value) => value >= 0;
+
+/**
+ * Checks whether an RSI-like value stays within the inclusive 0-100 range.
+ *
+ * @param {number} value Value to validate.
+ * @returns {boolean} True when the value is between 0 and 100.
+ */
+const isPercentage = (value) => value >= 0.0 && value <= 100.0;
+
 // see https://github.com/dynamoose/dynamoose/issues/209#issuecomment-374258965
+/**
+ * Retries a database callback when throughput is exceeded.
+ *
+ * @template TParams
+ * @template TResult
+ * @param {(params: TParams) => Promise<TResult> | TResult} callback Operation to execute.
+ * @param {TParams} params Operation parameters.
+ * @param {number} [attempt=1] Current retry attempt.
+ * @returns {Promise<TResult>} Callback result after any required backoff.
+ */
 export async function handleThroughput(callback, params, attempt = 1) {
     const BACK_OFF = 500; // back off base time in millis
     const CAP = 10000; // max. back off time in millis
@@ -23,14 +57,15 @@ export async function handleThroughput(callback, params, attempt = 1) {
     try {
         return await callback(params);
     } catch (e) {
-        if (e.code === 'ProvisionedThroughputExceededException') {
+        const error = /** @type {Error & { code?: string }} */ (e);
+        if (error.code === 'ProvisionedThroughputExceededException') {
             // exponential backoff with jitter,
             // see https://aws.amazon.com/de/blogs/architecture/exponential-backoff-and-jitter/
             const temp = Math.min(CAP, BACK_OFF * Math.pow(2, attempt));
             const sleep = temp / 2 + Math.floor((Math.random() * temp) / 2);
             logger.debug('MongoDB: sleeping for ' + sleep + ' on attempt ' + attempt + ', temp ' + temp);
             await new Promise((resolve) => setTimeout(resolve, sleep));
-            return handleThroughput(callback, params, ++attempt);
+            return handleThroughput(callback, params, attempt + 1);
         } else throw e;
     }
 }
@@ -39,12 +74,12 @@ const companyOverview = new mongoose.Schema(
     {
         symbol: {
             type: String,
-            validate: (symbol) => symbol.length > 0,
+            validate: isNonEmptyString,
             required: true,
         },
         date: {
             type: String,
-            validate: (date) => date.length > 0,
+            validate: isNonEmptyString,
             required: true,
         },
     },
@@ -75,52 +110,52 @@ const dailyAdjusted = new mongoose.Schema(
     {
         symbol: {
             type: String,
-            validate: (symbol) => symbol.length > 0,
+            validate: isNonEmptyString,
             required: true,
         },
         date: {
             type: String,
-            validate: (date) => date.length > 0,
+            validate: isNonEmptyString,
             required: true,
         },
         open: {
             type: Number,
-            validate: (open) => open >= 0,
+            validate: isNonNegative,
             required: true,
         },
         high: {
             type: Number,
-            validate: (high) => high >= 0,
+            validate: isNonNegative,
             required: true,
         },
         low: {
             type: Number,
-            validate: (low) => low >= 0,
+            validate: isNonNegative,
             required: true,
         },
         close: {
             type: Number,
-            validate: (close) => close >= 0,
+            validate: isNonNegative,
             required: true,
         },
         adjustedClose: {
             type: Number,
-            validate: (adjustedClose) => adjustedClose >= 0,
+            validate: isNonNegative,
             required: true,
         },
         volume: {
             type: Number,
-            validate: (volume) => volume >= 0,
+            validate: isNonNegative,
             required: true,
         },
         dividendAmount: {
             type: Number,
-            validate: (dividendAmount) => dividendAmount >= 0,
+            validate: isNonNegative,
             required: true,
         },
         splitCoefficient: {
             type: Number,
-            validate: (splitCoefficient) => splitCoefficient >= 0,
+            validate: isNonNegative,
             required: true,
         },
     },
@@ -173,89 +208,89 @@ const technicalIndicator = new mongoose.Schema(
     {
         symbol: {
             type: String,
-            validate: (symbol) => symbol.length > 0,
+            validate: isNonEmptyString,
             required: true,
         },
         date: {
             type: String,
-            validate: (date) => date.length > 0,
+            validate: isNonEmptyString,
             required: true,
         },
         sma15: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma20: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma50: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma100: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma200: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma250: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         ema5: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema8: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema9: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema12: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema13: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema20: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema21: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema26: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema34: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema50: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema100: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema200: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         ema250: {
             type: Number,
-            validate: (ema) => ema >= 0,
+            validate: isNonNegative,
         },
         macd: {
             type: Number,
@@ -268,15 +303,15 @@ const technicalIndicator = new mongoose.Schema(
         },
         rsi2: {
             type: Number,
-            validate: (rsi) => rsi >= 0.0 && rsi <= 100.0,
+            validate: isPercentage,
         },
         rsi14: {
             type: Number,
-            validate: (rsi) => rsi >= 0.0 && rsi <= 100.0,
+            validate: isPercentage,
         },
         rsi14Sma14: {
             type: Number,
-            validate: (rsi) => rsi >= 0.0 && rsi <= 100.0,
+            validate: isPercentage,
         },
         bbandLower: {
             type: Number,
@@ -289,11 +324,11 @@ const technicalIndicator = new mongoose.Schema(
         },
         atr14: {
             type: Number,
-            validate: (atr) => atr >= 0,
+            validate: isNonNegative,
         },
         natr14: {
             type: Number,
-            validate: (natr) => natr >= 0,
+            validate: isNonNegative,
         },
     },
     {
@@ -323,52 +358,52 @@ const vix = new mongoose.Schema(
     {
         date: {
             type: String,
-            validate: (date) => date.length > 0,
+            validate: isNonEmptyString,
             required: true,
         },
         open: {
             type: Number,
-            validate: (open) => open >= 0,
+            validate: isNonNegative,
             required: true,
         },
         high: {
             type: Number,
-            validate: (high) => high >= 0,
+            validate: isNonNegative,
             required: true,
         },
         low: {
             type: Number,
-            validate: (low) => low >= 0,
+            validate: isNonNegative,
             required: true,
         },
         close: {
             type: Number,
-            validate: (close) => close >= 0,
+            validate: isNonNegative,
             required: true,
         },
         sma10: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma15: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma20: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma50: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma100: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
         sma200: {
             type: Number,
-            validate: (sma) => sma >= 0,
+            validate: isNonNegative,
         },
     },
     {
