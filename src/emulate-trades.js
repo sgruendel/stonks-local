@@ -580,6 +580,36 @@ function sellItRSI(tiBefore, tiCurrent) {
 }
 
 /**
+ * RSI SMA based strategy, buy when RSI was below 40 and RSI14 crosses above its SMA14.
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @returns {boolean} true if buy signal
+ */
+function buyItRsiSma(tiBefore, tiCurrent) {
+    if (tiBefore.rsi14 && tiBefore.rsi14Sma14) {
+        return tiBefore.rsi14 < 40.0 && tiBefore.rsi14 < tiBefore.rsi14Sma14 && tiCurrent.rsi14 > tiCurrent.rsi14Sma14;
+    }
+
+    return false;
+}
+
+/**
+ * RSI SMA based strategy, sell when RSI was above 60 and RSI14 crosses below its SMA14.
+ *
+ * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
+ * @param {db.TechnicalIndicator} tiCurrent technical indicators for current trading day
+ * @returns {boolean} true if sell signal
+ */
+function sellItRsiSma(tiBefore, tiCurrent) {
+    if (tiBefore.rsi14 && tiBefore.rsi14Sma14) {
+        return tiBefore.rsi14 > 60.0 && tiBefore.rsi14 > tiBefore.rsi14Sma14 && tiCurrent.rsi14 < tiCurrent.rsi14Sma14;
+    }
+
+    return false;
+}
+
+/**
  * EMA Cloud based strategy, buy when EMA5 is rising but still below EMA13
  *
  * @param {db.TechnicalIndicator} tiBefore technical indicators for previous trading day
@@ -948,6 +978,9 @@ async function emulateTrades(symbols, fromDate, toDate, strategy, unleveragedEtf
                             // since 2019 info: sum of cash+depot is 2.038.316,64
                             // since 2019 info: transaction fees / taxes (already included in cash): 9.485/-29.856,94
                             return await trade(symbol, date, vixs, buyItRSI, sellItRSI, strategy);
+
+                        case 'RSI-SMA':
+                            return await trade(symbol, date, vixs, buyItRsiSma, sellItRsiSma, strategy);
 
                         case 'EMA2':
                             // since 2019 info: cash now is 1.477.632,19
