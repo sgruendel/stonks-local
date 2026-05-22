@@ -29,7 +29,7 @@
         "mongoose": "^9.6.2",
         "node-fetch": "^3.3.2",
         "p-map": "^7.0.4",
-        "p-queue": "^9.2.0",
+        "p-queue": "^9.3.0",
         "winston": "^3.19.0"
     },
     "devDependencies": {
@@ -37,7 +37,7 @@
         "@types/node": "^24.12.4",
         "c8": "^11.0.0",
         "chai": "^6.2.2",
-        "eslint": "^10.3.0",
+        "eslint": "^10.4.0",
         "globals": "^17.6.0",
         "mocha": "^11.7.5"
     }
