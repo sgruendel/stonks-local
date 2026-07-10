@@ -26,15 +26,15 @@
     "dependencies": {
         "csv-parser": "^3.2.1",
         "dayjs": "^1.11.21",
-        "mongoose": "^9.7.3",
+        "mongoose": "^9.7.4",
         "node-fetch": "^3.3.2",
         "p-map": "^7.0.5",
-        "p-queue": "^9.3.0",
+        "p-queue": "^9.3.1",
         "winston": "^3.19.0"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/node": "^24.13.2",
+        "@types/node": "^24.13.3",
         "c8": "^11.0.0",
         "chai": "^6.2.2",
         "eslint": "^10.6.0",
