@@ -18,6 +18,9 @@
     "author": "Stefan Gründel",
     "type": "module",
     "main": "index.js",
+    "engines": {
+        "node": ">=22"
+    },
     "scripts": {
         "test": "npm run test:unit",
         "test:integration": "mocha test/integration/*",
@@ -26,15 +29,15 @@
     "dependencies": {
         "csv-parser": "^3.2.1",
         "dayjs": "^1.11.23",
-        "mongoose": "^9.11.1",
+        "mongoose": "^9.11.2",
         "node-fetch": "^3.3.2",
-        "p-map": "^7.0.8",
-        "p-queue": "^9.3.3",
+        "p-map": "^7.1.1",
+        "p-queue": "^10.0.0",
         "winston": "^3.19.0"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
-        "@types/node": "^24.13.3",
+        "@types/node": "^24.19.2",
         "c8": "^12.0.0",
         "chai": "^6.3.0",
         "eslint": "^10.12.0",

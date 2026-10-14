@@ -35,8 +35,8 @@ const INTERVAL_CAP = Number(process.env.ALPHAVANTAGE_INTERVAL_CAP) || 1;
 // Request limit of 75 per minute for Alpha Vantage with premium key, but no more than 5 per second;
 // so we default to 1 per second to be safe (i.e. 60 per minute) and concurrency of 5
 const queue = new PQueue({ concurrency: 5, interval: INTERVAL_SECS * 1000, intervalCap: INTERVAL_CAP });
-queue.on('error', (err) => {
-    console.error('queue error' + err);
+queue.addEventListener('error', (event) => {
+    console.error('queue error' + event.detail);
 });
 
 const BASE_URL = 'https://www.alphavantage.co/';
