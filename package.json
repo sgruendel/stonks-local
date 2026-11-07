@@ -29,7 +29,7 @@
     "dependencies": {
         "csv-parser": "^3.2.1",
         "dayjs": "^1.11.23",
-        "mongoose": "^9.11.4",
+        "mongoose": "^9.12.0",
         "node-fetch": "^3.3.2",
         "p-map": "^7.1.1",
         "p-queue": "^10.0.0",
@@ -40,8 +40,8 @@
         "@types/node": "^26.6.6",
         "c8": "^12.0.0",
         "chai": "^6.3.0",
-        "eslint": "^10.13.0",
-        "globals": "^17.13.0",
+        "eslint": "^10.14.0",
+        "globals": "^17.14.0",
         "mocha": "^12.0.3"
     }
 }
